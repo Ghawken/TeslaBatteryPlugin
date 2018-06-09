@@ -123,6 +123,9 @@ class Plugin(indigo.PluginBase):
         if self.debugLevel >= 2:
             self.debugLog(u"deviceStopComm() method called.")
         indigo.server.log(u"Stopping device: " + dev.name)
+        dev.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
+
+        dev.setErrorStateOnServer(u'Device Offline')
 
     def forceUpdate(self):
         self.updater.update(currentVersion='0.0.0')
@@ -143,7 +146,7 @@ class Plugin(indigo.PluginBase):
                 updateMeters = t.time() +5
                 updateGrid = t.time() + 10
                 updateSite = t.time() + 30
-                updateBatt = t.time() +60
+                updateBatt = t.time() + 35
                 while self.prefsUpdated == False:
                     if self.debugextra:
                         self.debugLog(u" ")
@@ -179,28 +182,32 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'update Tesla Meters Called')
         meters = self.sendcommand('meters/aggregates')
-        self.fillmetersinfo(meters, dev)
+        if meters is not None:
+            self.fillmetersinfo(meters, dev)
         return
 
     def updateGridStatus(self, dev):
         if self.debugextra:
             self.logger.debug(u'update Tesla Grid Status Called')
         gridstatus = self.sendcommand('system_status/grid_status')
-        self.fillgridstatusinfo(gridstatus, dev)
+        if gridstatus is not None:
+            self.fillgridstatusinfo(gridstatus, dev)
         return
 
     def updateBattery(self, dev):
         if self.debugextra:
             self.logger.debug(u'update Tesla Battery Called')
         battery = self.sendcommand('system_status/soe')
-        self.fillbatteryinfo(battery, dev)
+        if battery is not None:
+            self.fillbatteryinfo(battery, dev)
         return
 
     def updateSiteInfo(self, dev):
         if self.debugextra:
             self.logger.debug(u'update Tesla Site Info Called')
         siteinfo = self.sendcommand('site_info')
-        self.fillsiteinfo(siteinfo, dev)
+        if siteinfo is not None:
+            self.fillsiteinfo(siteinfo, dev)
         return
 
 
@@ -330,7 +337,7 @@ class Plugin(indigo.PluginBase):
                 # Next Grid Meters Device
 
             meters = self.sendcommand('meters/aggregates')
-            self.logger.debug(unicode(meters))
+            #self.logger.debug(unicode(meters))
             if meters is not None:
                 devFound = False
                 for device in indigo.devices.iter('self.teslaMeters'):
