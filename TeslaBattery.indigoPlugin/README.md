@@ -1,28 +1,64 @@
 # Tesla Battery Plugin for IndigoDomo
 
-Allows reporting of current gateway status and currently anything the app reports
+![https://image.ibb.co/jQZnXo/icon.png](https://image.ibb.co/jQZnXo/icon.png)
 
-Solar Generation
-Home Usage
-Grid Usage
-Battery Usage
 
-Numbers in Positives and Negatives
+A Plugin for Tesla Battery Gateway - enabling you to see everything that is happening within the Tesla App.
 
-Can trigger based on any of these factors
+eg.
+Grid Usage in Watts
+Solar Generation in Watts
+Battery Usage in Watts 
+Home Consumption in Watts
 
-Usage:
-TBD
+Also informs you in Connected to Grid - so in case of Grid outages can run Action Groups - eg. turn off devices.
 
-Install
-Plugin Config - set the Gateway IP address (should be static)
-Press Check Connection
-Press Generate Devices
-Will Create Four Devices in Folder 'Telsa Battery Gateway'
+Further Documentation to follow - but these pictures should explain
 
-- One Telsa Battery - reports percentage of charge
-- One Tesla Site - reports Site Info
-- One Tesla Meters - reports currently generation
-- One Grid Status - reports current Grid connection live or otherwise.
+**Usage**
 
+1. Need Tesla Battery with standard Gateway
+
+2. Set up Static IP Address for this Gateway on the same network as Indigo Server
+
+3. Install Plugin from
+#### https://github.com/Ghawken/TeslaBatteryPlugin/releases/
+
+
+4. Go to Plugin Config - enter the Gateway IP Address
+
+Click the Check Connection Button
+
+![https://preview.ibb.co/gRY358/Plugin_Config.png](https://preview.ibb.co/gRY358/Plugin_Config.png)
+
+
+If communicating - Generate Devices button will appear
+Click the Generate Devices button
+
+![https://image.ibb.co/b3FuCo/Plugin_Config_Generate_Devices.png](https://image.ibb.co/b3FuCo/Plugin_Config_Generate_Devices.png)
+
+
+This will create the plugins four devices with a folder called 'Tesla Battery Gateway'
+
+eg.
+
+![https://preview.ibb.co/mHbqk8/Device_Meters.png](https://preview.ibb.co/mHbqk8/Device_Meters.png)
+
+
+![https://preview.ibb.co/bUPMso/Devices.png](https://preview.ibb.co/bUPMso/Devices.png)
+
+
+![https://preview.ibb.co/hpwedT/Devices_Grid_Status.png](https://preview.ibb.co/hpwedT/Devices_Grid_Status.png)
+
+
+
+
+
+
+More to follow.
+[Not extensively tested in all conditions as  - as haven't had any negative numbers as solar generation today]
+
+
+
+Glenn
 
