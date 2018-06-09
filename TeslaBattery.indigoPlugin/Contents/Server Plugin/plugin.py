@@ -97,9 +97,13 @@ class Plugin(indigo.PluginBase):
             self.debugLog(u"User prefs dialog cancelled.")
 
         if not userCancelled:
-            self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
-            self.debugLog(u"User prefs saved.")
 
+            self.debugLog(u"User prefs saved.")
+            self.debug = valuesDict.get('showDebugInfo', False)
+            self.debugLevel = int(valuesDict.get('showDebugLevel', "20"))
+            self.debugextra = valuesDict.get('debugextra', False)
+            self.serverip = valuesDict.get('ipAddress', '')
+            self.prefsUpdated = True
             try:
                 self.logLevel = int(valuesDict[u"showDebugLevel"])
             except:
