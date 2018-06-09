@@ -159,7 +159,7 @@ class Plugin(indigo.PluginBase):
                         updateGrid = t.time() + 30
 
                     if t.time() > updateSite:
-                        for dev in indigo.devices.itervalues('self.teslaGateway'):
+                        for dev in indigo.devices.itervalues('self.teslaSite'):
                             self.updateSiteInfo(dev)
                         updateSite = t.time() + 600
 
