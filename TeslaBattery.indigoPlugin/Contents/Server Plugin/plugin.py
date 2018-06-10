@@ -122,7 +122,7 @@ class Plugin(indigo.PluginBase):
     def deviceStartComm(self, dev):
         if self.debugLevel >= 2:
             self.debugLog(u"deviceStartComm() method called.")
-
+        dev.stateListOrDisplayStateIdChanged()
 
     # Shut 'em down.
     def deviceStopComm(self, dev):
@@ -476,9 +476,32 @@ class Plugin(indigo.PluginBase):
                 {'key': 'Solar', 'value': data['solar']['instant_apparent_power']},
                 {'key': 'Grid', 'value': data['site']['instant_apparent_power']},
                 {'key': 'Home', 'value': data['load']['instant_apparent_power']},
-                {'key': 'Battery', 'value': data['battery']['instant_apparent_power']}
+                {'key': 'Battery', 'value': data['battery']['instant_apparent_power']},
+                {'key': 'SolarkW', 'value': "{0:0.1f}".format(data['solar']['instant_apparent_power']/1000)},
+                {'key': 'GridkW', 'value': "{0:0.1f}".format(data['site']['instant_apparent_power']/1000)},
+                {'key': 'HomekW', 'value': "{0:0.1f}".format(data['load']['instant_apparent_power']/1000)},
+                {'key': 'BatterykW', 'value': "{0:0.1f}".format(data['battery']['instant_apparent_power']/1000)}
             ]
             device.updateStatesOnServer(stateList)
+            # add this as can't test negatives at momemnt - need rain to stoP!
+            try:
+                #Grid Usage is essentially the summary
+                if float(data['site']['instant_apparent_power']) > 0 :
+                    # Pulling something from Grid
+                    device.updateStateOnServer('gridUsage', value=True)
+                else:
+                    device.updateStateOnServer('gridUsage', value=False)
+                    self.logger.debug(u'Grid Usage False')
+                if float(data['battery']['instant_apparent_power']) < 0:
+                # Pulling something from Grid
+                    device.updateStateOnServer('batteryCharging', value=True)
+                else:
+                    device.updateStateOnServer('batteryCharging', value=False)
+
+            except:
+                self.logger.info(u'Error in Calculation')
+                pass
+
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
             device.updateStateOnServer('deviceStatus', value='Online')
             device.updateStateImageOnServer(indigo.kStateImageSel.EnergyMeterOn)
@@ -499,7 +522,7 @@ class Plugin(indigo.PluginBase):
             percentage= float(data['percentage'])
             self.logger.debug(u'Battery Per:'+unicode(percentage))
             device.updateStateOnServer('charge', percentage)
-
+            device.updateStateOnServer('chargeCP', int(percentage))
             if percentage > 95:
                 device.updateStateImageOnServer(indigo.kStateImageSel.BatteryLevelHigh)
             elif percentage > 75:

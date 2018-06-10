@@ -130,6 +130,11 @@
         <TriggerLabel>Percent Charged</TriggerLabel>
         <ControlPageLabel>Percent charged</ControlPageLabel>
       </State>
+       <State id="chargeCP">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Percent Charged for Control Page Use</TriggerLabel>
+        <ControlPageLabel>Percent charged for Control Page Use</ControlPageLabel>
+      </State>
 
    </States>
     <UiDisplayStateId>charge</UiDisplayStateId>
@@ -174,6 +179,16 @@
         <TriggerLabel>Device online?</TriggerLabel>
         <ControlPageLabel>Device online?</ControlPageLabel>
       </State>
+       <State id="gridUsage">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Using Grid Power ?</TriggerLabel>
+        <ControlPageLabel>Using Grid Power ?</ControlPageLabel>
+      </State>
+       <State id="batteryCharging">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Battery Chariging?</TriggerLabel>
+        <ControlPageLabel>Battery Charging?</ControlPageLabel>
+      </State>
      <State id="deviceStatus">
         <ValueType>String</ValueType>
         <TriggerLabel>Device Status</TriggerLabel>
@@ -204,7 +219,26 @@
         <TriggerLabel>Home Watts Draw</TriggerLabel>
         <ControlPageLabel>Home Watts Draw</ControlPageLabel>
       </State>
-
+      <State id="SolarkW">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Solar kW Generating</TriggerLabel>
+        <ControlPageLabel>Solar kW Generating</ControlPageLabel>
+      </State>
+      <State id="BatterykW">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Battery kW</TriggerLabel>
+        <ControlPageLabel>Battery kW</ControlPageLabel>
+      </State>
+      <State id="GridkW">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Grid kW</TriggerLabel>
+        <ControlPageLabel>Grid kW</ControlPageLabel>
+      </State>
+     <State id="HomekW">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Home kW Draw</TriggerLabel>
+        <ControlPageLabel>Home kW Draw</ControlPageLabel>
+      </State>
    </States>
     <UiDisplayStateId>Home</UiDisplayStateId>
   </Device>
