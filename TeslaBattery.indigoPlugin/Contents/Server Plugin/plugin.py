@@ -71,10 +71,10 @@ class Plugin(indigo.PluginBase):
         self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
         self.debugextra = self.pluginPrefs.get('debugextra', False)
 
-        self.prefServerTimeout = int(self.pluginPrefs.get('configMenuServerTimeout', "15"))
-        self.configUpdaterInterval = self.pluginPrefs.get('configUpdaterInterval', 24)
-        self.configUpdaterForceUpdate = self.pluginPrefs.get('configUpdaterForceUpdate', False)
+        self.updateFrequency = float(self.pluginPrefs.get('updateFrequency', "24")) * 60.0 * 60.0
+        self.next_update_check = t.time()
 
+        self.openStore = self.pluginPrefs.get('openStore', False)
         self.serverip = self.pluginPrefs.get('ipAddress', '')
 
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
@@ -105,12 +105,13 @@ class Plugin(indigo.PluginBase):
             self.debugextra = valuesDict.get('debugextra', False)
             self.serverip = valuesDict.get('ipAddress', '')
             self.prefsUpdated = True
+            self.updateFrequency = float(valuesDict.get('updateFrequency', "24")) * 60.0 * 60.0
             try:
                 self.logLevel = int(valuesDict[u"showDebugLevel"])
             except:
                 self.logLevel = logging.INFO
             self.indigo_log_handler.setLevel(self.logLevel)
-
+            self.openStore = valuesDict.get('openStore', False)
             self.logger.debug(u"logLevel = " + str(self.logLevel))
             self.logger.debug(u"User prefs saved.")
             self.logger.debug(u"Debugging on (Level: {0})".format(self.debugLevel))
@@ -132,15 +133,27 @@ class Plugin(indigo.PluginBase):
 
         dev.setErrorStateOnServer(u'Device Offline')
 
-    def forceUpdate(self):
-        self.updater.update(currentVersion='0.0.0')
+    ###
+    ###  Update ghpu Routines.
 
     def checkForUpdates(self):
-        if self.updater.checkForUpdate() == False:
-            indigo.server.log(u"No Updates are Available")
+
+        updateavailable = self.updater.getLatestVersion()
+        if updateavailable and self.openStore:
+            self.logger.info(u'Tesla Battery: Update Checking.  Update is Available.  Taking you to plugin Store. ')
+            self.sleep(2)
+            self.pluginstoreUpdate()
+        elif updateavailable and not self.openStore:
+            self.errorLog(u'Tesla Battery: Update Checking.  Update is Available.  Please check Store for details/download.')
 
     def updatePlugin(self):
         self.updater.update()
+
+    def pluginstoreUpdate(self):
+        iurl = 'http://www.indigodomo.com/pluginstore/'
+        self.browserOpen(iurl)
+
+    #####
 
     def runConcurrentThread(self):
 
@@ -153,6 +166,16 @@ class Plugin(indigo.PluginBase):
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
                 while self.prefsUpdated == False:
+                    if self.updateFrequency > 0:
+                        if t.time() > self.next_update_check:
+                            try:
+                                self.checkForUpdates()
+                                self.next_update_check = t.time() + self.updateFrequency
+                            except:
+                                self.logger.debug(
+                                    u'Error checking for update - ? No Internet connection.  Checking again in 24 hours')
+                                self.next_update_check = self.next_update_check + 86400
+
                     if self.debugextra:
                         self.debugLog(u" ")
 
@@ -224,16 +247,6 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.debugLog(u"Starting Plugin. startup() method called.")
         self.updater = GitHubPluginUpdater(self)
-        # See if there is a plugin update and whether the user wants to be notified.
-        try:
-            if self.configUpdaterForceUpdate:
-                self.updatePlugin()
-
-            else:
-                self.checkForUpdates()
-            self.sleep(1)
-        except Exception as error:
-            self.errorLog(u"Update checker error: {0}".format(error))
 
     def validatePrefsConfigUi(self, valuesDict):
         if self.debugLevel >= 2:

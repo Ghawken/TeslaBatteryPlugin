@@ -15,7 +15,6 @@
             <Field id="label4" type="label" fontSize="small" fontColor="black">
         <Label></Label>
       </Field>
-       <Field id="sep1" type="separator"/>
          <Field id="loginOK"
 				   type="textfield"
 				   hidden="true"
@@ -49,22 +48,22 @@
 				<Title>Generate Tesla Devices</Title>
 				<CallbackMethod>generateTeslaDevices</CallbackMethod>
 	</Field>
-  <Field id="space1" type="label" fontColor="black">
-    <Label>Check for Updates:</Label>
-  </Field>
-  <Field id="sep6" type="separator"/>
-  <Field id="space2" type="label" fontSize="small" fontColor="black">
-    <Label>The amount of time that the plugin will wait between checking for updated version</Label>
-  </Field>
-  <Field id="configUpdaterInterval" type="textfield" defaultValue="24" tooltip="Select preference for how often updates will be checked">
-    <Label>Update Check Interval:(hours)</Label>
-  </Field>
+  <Field id="sep400" type="separator"/>
 
-  <Field id="configUpdaterForceUpdate" type="checkbox" tooltip="Will automatic install newer version at check.">
-    <Label> Automatically install newer version at time of check</Label>
-    <Description>Enable/Disable</Description>
-  </Field>
- <Field id="sep9" type="separator"/>
+    <Field id="space121" type="label" fontSize="small">
+        <Label>Frequency of Update checking.  If update needed after check can Open Plugin Store to Download.</Label>
+    </Field>
+    <Field id="updateFrequency" type="textfield" tooltip="Size of Map" defaultValue="24">
+     <Label>Frequency of Update Checks [in Hours] </Label>
+     <Description>Hours between checking for Plugin Update.  Default 24 hours.</Description>
+    </Field>
+
+    <Field id="openStore" type="checkbox" tooltip='Enabling with open Plugin Store for download'>
+        <Label>Automatically Open Plugin Store if an update is available.</Label>
+        <Description>Enable/Disable</Description>
+    </Field>
+    <Field id="space21126" type="separator"/>
+
 
   <Field id="space10" type="label" alignText="left">
     <Label>Debugging:</Label>
