@@ -31,7 +31,7 @@ kDefaultPluginPrefs = {
     u'showDebugInfo': False,  # Verbose debug logging?
     u'configUpdaterForceUpdate': False,
     u'configUpdaterInterval': 24,
-    u'showDebugLevel': "1",  # Low, Medium or High debug output.
+    u'showDebugLevel': "5",  # Low, Medium or High debug output.
     u'updaterEmail': "",  # Email to notify of plugin updates.
     u'updaterEmailsEnabled': False  # Notification of plugin updates wanted.
 }
@@ -60,6 +60,7 @@ class Plugin(indigo.PluginBase):
 
         try:
             self.logLevel = int(self.pluginPrefs[u"showDebugLevel"])
+
         except:
             self.logLevel = logging.INFO
 
@@ -67,8 +68,8 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"logLevel = " + str(self.logLevel))
         self.triggers = {}
 
-        self.debug = self.pluginPrefs.get('showDebugInfo', False)
-        self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
+        #self.debug = self.pluginPrefs.get('showDebugInfo', False)
+        #self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
         self.debugextra = self.pluginPrefs.get('debugextra', False)
         self.debugtriggers = self.pluginPrefs.get('debugtriggers', False)
         self.updateFrequency = float(self.pluginPrefs.get('updateFrequency', "24")) * 60.0 * 60.0
@@ -86,13 +87,12 @@ class Plugin(indigo.PluginBase):
 
 
     def __del__(self):
-        if self.debugLevel >= 2:
-            self.debugLog(u"__del__ method called.")
+        self.debugLog(u"__del__ method called.")
         indigo.PluginBase.__del__(self)
 
     def closedPrefsConfigUi(self, valuesDict, userCancelled):
-        if self.debugLevel >= 2:
-            self.debugLog(u"closedPrefsConfigUi() method called.")
+
+        self.debugLog(u"closedPrefsConfigUi() method called.")
 
         if userCancelled:
             self.debugLog(u"User prefs dialog cancelled.")
@@ -100,7 +100,7 @@ class Plugin(indigo.PluginBase):
         if not userCancelled:
 
             self.debugLog(u"User prefs saved.")
-            self.debug = valuesDict.get('showDebugInfo', False)
+            #self.debug = valuesDict.get('showDebugInfo', False)
             self.debugextra = valuesDict.get('debugextra', False)
             self.debugtriggers = valuesDict.get('debugtriggers', False)
             self.serverip = valuesDict.get('ipAddress', '')
@@ -117,19 +117,19 @@ class Plugin(indigo.PluginBase):
             self.openStore = valuesDict.get('openStore', False)
             self.logger.debug(u"logLevel = " + str(self.logLevel))
             self.logger.debug(u"User prefs saved.")
-            self.logger.debug(u"Debugging on (Level: {0})".format(self.debugLevel))
+            self.logger.debug(u"Debugging on (Level: {0})".format(self.logLevel))
 
         return True
 
     # Start 'em up.
     def deviceStartComm(self, dev):
-        if self.debugLevel >= 2:
-            self.debugLog(u"deviceStartComm() method called.")
+
+        self.debugLog(u"deviceStartComm() method called.")
         dev.stateListOrDisplayStateIdChanged()
 
     # Shut 'em down.
     def deviceStopComm(self, dev):
-        if self.debugLevel >= 2:
+        if self.debugextra:
             self.debugLog(u"deviceStopComm() method called.")
         indigo.server.log(u"Stopping device: " + dev.name)
         dev.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
@@ -249,7 +249,7 @@ class Plugin(indigo.PluginBase):
         self.updater = GitHubPluginUpdater(self)
 
     def validatePrefsConfigUi(self, valuesDict):
-        if self.debugLevel >= 2:
+        if self.debugextra:
             self.debugLog(u"validatePrefsConfigUi() method called.")
 
         error_msg_dict = indigo.Dict()
@@ -266,30 +266,28 @@ class Plugin(indigo.PluginBase):
 
         self.logger.debug(u"toggleDebugEnabled() method called.")
 
-        if self.debugLevel == int(logging.INFO):
+        if self.logLevel == int(logging.INFO):
             self.debug = True
-            self.debugLevel = int(logging.DEBUG)
             self.pluginPrefs['showDebugInfo'] = True
             self.pluginPrefs['showDebugLevel'] = int(logging.DEBUG)
             self.logger.info(u"Debugging on.")
-            self.logger.debug(u"Debug level: {0}".format(self.debugLevel))
+            self.logger.debug(u"Debug level: {0}".format(self.logLevel))
             self.logLevel = int(logging.DEBUG)
             self.logger.debug(u"New logLevel = " + str(self.logLevel))
             self.indigo_log_handler.setLevel(self.logLevel)
 
         else:
             self.debug = False
-            self.debugLevel = int(logging.INFO)
             self.pluginPrefs['showDebugInfo'] = False
             self.pluginPrefs['showDebugLevel'] = int(logging.INFO)
-            self.logger.info(u"Debugging off.  Debug level: {0}".format(self.debugLevel))
+            self.logger.info(u"Debugging off.  Debug level: {0}".format(self.logLevel))
             self.logLevel = int(logging.INFO)
             self.logger.debug(u"New logLevel = " + str(self.logLevel))
             self.indigo_log_handler.setLevel(self.logLevel)
 
     # Generate Devices
     def generateTeslaDevices(self, valuesDict):
-        if self.debugLevel >= 2:
+        if self.debugextra:
             self.debugLog(u'generate Devices run')
         try:
             # check Gatewway and IP up
@@ -378,7 +376,7 @@ class Plugin(indigo.PluginBase):
 
 ## Check Connection
     def testConnection(self, valuesDict):
-        if self.debugLevel >= 2:
+        if self.debugextra:
             self.debugLog(u'check Connection run')
         try:
             # check Gatewway and IP up
