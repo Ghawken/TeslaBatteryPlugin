@@ -47,11 +47,6 @@
         <TriggerLabel>Device online?</TriggerLabel>
         <ControlPageLabel>Device online?</ControlPageLabel>
       </State>
-     <State id="deviceStatus">
-        <ValueType>String</ValueType>
-        <TriggerLabel>Device Status</TriggerLabel>
-        <ControlPageLabel>Device Status</ControlPageLabel>
-      </State>
       <State id="deviceLastUpdated">
         <ValueType>String</ValueType>
         <TriggerLabel>Device Last Updated</TriggerLabel>

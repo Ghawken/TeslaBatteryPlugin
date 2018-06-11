@@ -70,7 +70,7 @@ class Plugin(indigo.PluginBase):
         self.debug = self.pluginPrefs.get('showDebugInfo', False)
         self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
         self.debugextra = self.pluginPrefs.get('debugextra', False)
-
+        self.debugtriggers = self.pluginPrefs.get('debugtriggers', False)
         self.updateFrequency = float(self.pluginPrefs.get('updateFrequency', "24")) * 60.0 * 60.0
         self.next_update_check = t.time()
 
@@ -101,16 +101,19 @@ class Plugin(indigo.PluginBase):
 
             self.debugLog(u"User prefs saved.")
             self.debug = valuesDict.get('showDebugInfo', False)
-            self.debugLevel = int(valuesDict.get('showDebugLevel', "20"))
             self.debugextra = valuesDict.get('debugextra', False)
+            self.debugtriggers = valuesDict.get('debugtriggers', False)
             self.serverip = valuesDict.get('ipAddress', '')
             self.prefsUpdated = True
             self.updateFrequency = float(valuesDict.get('updateFrequency', "24")) * 60.0 * 60.0
+
             try:
                 self.logLevel = int(valuesDict[u"showDebugLevel"])
             except:
                 self.logLevel = logging.INFO
+
             self.indigo_log_handler.setLevel(self.logLevel)
+
             self.openStore = valuesDict.get('openStore', False)
             self.logger.debug(u"logLevel = " + str(self.logLevel))
             self.logger.debug(u"User prefs saved.")
@@ -176,9 +179,6 @@ class Plugin(indigo.PluginBase):
                                     u'Error checking for update - ? No Internet connection.  Checking again in 24 hours')
                                 self.next_update_check = self.next_update_check + 86400
 
-                    if self.debugextra:
-                        self.debugLog(u" ")
-
                     if t.time() > updateMeters:
                         for dev in indigo.devices.itervalues('self.teslaMeters'):
                             self.updateteslaMeters(dev)
@@ -210,7 +210,7 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'update Tesla Meters Called')
         meters = self.sendcommand('meters/aggregates')
-        if meters is not None:
+        if meters is not None and meters !='Offline':
             self.fillmetersinfo(meters, dev)
         return
 
@@ -218,7 +218,7 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'update Tesla Grid Status Called')
         gridstatus = self.sendcommand('system_status/grid_status')
-        if gridstatus is not None:
+        if gridstatus is not None and gridstatus !='Offline':
             self.fillgridstatusinfo(gridstatus, dev)
         return
 
@@ -226,7 +226,7 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'update Tesla Battery Called')
         battery = self.sendcommand('system_status/soe')
-        if battery is not None:
+        if battery is not None and battery !='Offline':
             self.fillbatteryinfo(battery, dev)
         return
 
@@ -234,7 +234,7 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'update Tesla Site Info Called')
         siteinfo = self.sendcommand('site_info')
-        if siteinfo is not None:
+        if siteinfo is not None and siteinfo !='Offline':
             self.fillsiteinfo(siteinfo, dev)
         return
 
@@ -296,16 +296,16 @@ class Plugin(indigo.PluginBase):
 
             check = self.sendcommand('site_info/site_name')
             self.logger.debug(unicode(check))
-            if check is None:
+            if check is None or check=='Offline':
                 # Connection
-                self.logger.debug(u'Connection cannot be Established')
+                self.logger.info(u'Connection cannot be Established')
                 valuesDict['loginOK'] = False
                 return valuesDict
 
             # Generate and Check Site Info
             siteinfo = self.sendcommand('site_info')
             self.logger.debug(unicode(siteinfo))
-            if siteinfo is not None:
+            if siteinfo is not None and siteinfo !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaSite'):
                     devFound = True
@@ -319,7 +319,7 @@ class Plugin(indigo.PluginBase):
             # Next Device Battery
             battery = self.sendcommand('system_status/soe')
             self.logger.debug(unicode(battery))
-            if battery is not None:
+            if battery is not None and battery !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaBattery'):
                     devFound = True
@@ -337,7 +337,7 @@ class Plugin(indigo.PluginBase):
             # Next Grid Status Device
             gridstatus = self.sendcommand('system_status/grid_status')
             #self.logger.debug(unicode(gridstatus))
-            if gridstatus is not None:
+            if gridstatus is not None and gridstatus !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaGridStatus'):
                     devFound = True
@@ -356,7 +356,7 @@ class Plugin(indigo.PluginBase):
 
             meters = self.sendcommand('meters/aggregates')
             #self.logger.debug(unicode(meters))
-            if meters is not None:
+            if meters is not None and meters !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaMeters'):
                     devFound = True
@@ -384,7 +384,7 @@ class Plugin(indigo.PluginBase):
             # check Gatewway and IP up
             check = self.sendcommand('site_info/site_name')
             self.logger.debug(unicode(check))
-            if check is None:
+            if check is None or check == 'Offline':
                 # Connection
                 self.logger.debug(u'Connection cannot be Established')
                 valuesDict['loginOK'] = False
@@ -418,7 +418,7 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(u'Status code'+unicode(r.status_code) )
                 self.logger.debug(u'Text :'+unicode(r.text))  #r.text
                 self.logger.debug(u'Error Running command')
-                return ''
+                return 'Offline'
             else:
                 if self.debugextra:
                     self.logger.debug(u'SUCCESS Text :' + unicode(r.text))
@@ -457,7 +457,6 @@ class Plugin(indigo.PluginBase):
                 ]
             device.updateStatesOnServer(stateList)
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
-            device.updateStateOnServer('deviceStatus', value='Online')
             device.updateStateImageOnServer(indigo.kStateImageSel.EnergyMeterOn)
             update_time = t.strftime('%c')
             device.updateStateOnServer('deviceLastUpdated', value=str(update_time))
@@ -474,7 +473,7 @@ class Plugin(indigo.PluginBase):
         try:
             batterykW = float(data['battery']['instant_power'])/1000
             #If is between 0 and -100 set to Zero
-            if -100 <= batterykW <=100:
+            if -0.1 <= batterykW <=0.1:
                 batterykW = 0
 
 
@@ -491,6 +490,11 @@ class Plugin(indigo.PluginBase):
 
             device.updateStatesOnServer(stateList)
             # add this as can't test negatives at momemnt - need rain to stoP!
+
+            batteryCharging = device.states['batteryCharging']
+            batteryDischarging = device.states['batteryDischarging']
+            sendingtoGrid = device.states['sendingtoGrid']
+
             try:
                 #Grid Usage is essentially the summary
                 if float(data['site']['instant_power']) > 0 :
@@ -499,8 +503,11 @@ class Plugin(indigo.PluginBase):
                 else:
                     device.updateStateOnServer('gridUsage', value=False)
                     self.logger.debug(u'Grid Usage False')
-                if float(data['battery']['instant_power']) < -100:
+
+                if float(data['battery']['instant_power']) < -100 :
                 # Pulling something from Grid
+                    if batteryCharging ==False:
+                        self.triggerCheck(device, 'batteryCharging')
                     device.updateStateOnServer('batteryCharging', value=True)
                 else:
                     device.updateStateOnServer('batteryCharging', value=False)
@@ -513,18 +520,20 @@ class Plugin(indigo.PluginBase):
 
                 if float(data['site']['instant_power']) < -100:
                     # Solar Generating more than 150 watts
+                    if sendingtoGrid == False:
+                        self.triggerCheck(device, 'solarExporting')
                     device.updateStateOnServer('sendingtoGrid', value=True)
                 else:
                     device.updateStateOnServer('sendingtoGrid', value=False)
 
                 if float(data['battery']['instant_power']) > 150:
                     # Solar Generating more than 150 watts
+                    if batteryDischarging==False:
+                        self.triggerCheck(device, 'batteryDischarging')
                     device.updateStateOnServer('batteryDischarging', value=True)
+
                 else:
                     device.updateStateOnServer('batteryDischarging', value=False)
-
-
-
             except:
                 self.logger.info(u'Error in Calculation')
                 pass
@@ -574,10 +583,18 @@ class Plugin(indigo.PluginBase):
     def fillgridstatusinfo(self, data, device):
         self.logger.debug(u'fill grid status info called')
         try:
+            gridConnected = device.states['gridConnected']
+
             device.updateStateOnServer('gridStatus', value=data['grid_status'])
+
             if data['grid_status'] == 'SystemGridConnected':
+                # Grid must be restored
+                if gridConnected ==False:
+                    self.triggerCheck(device, 'gridRestored')
                 device.updateStateOnServer('gridConnected', value=True)
-            elif data['grid_status'] == 'SystemIslandedActive':
+            elif data['grid_status'] == 'SystemIslandedActive' :
+                if gridConnected == True:
+                    self.triggerCheck(device, 'gridLoss')
                 device.updateStateOnServer('gridConnected', value=False)
 
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
@@ -587,5 +604,53 @@ class Plugin(indigo.PluginBase):
         except:
             self.logger.exception(u'Caught Exception in FillGridStatus Info')
             device.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
+
+##################  Trigger
+
+    def triggerStartProcessing(self, trigger):
+        self.logger.debug("Adding Trigger %s (%d) - %s" % (trigger.name, trigger.id, trigger.pluginTypeId))
+        assert trigger.id not in self.triggers
+        self.triggers[trigger.id] = trigger
+
+    def triggerStopProcessing(self, trigger):
+        self.logger.debug("Removing Trigger %s (%d)" % (trigger.name, trigger.id))
+        assert trigger.id in self.triggers
+        del self.triggers[trigger.id]
+
+    def triggerCheck(self, device,  triggertype):
+
+        self.logger.debug('triggerCheck run.  device.id:'+unicode(device.id)+' triggertype:'+unicode(triggertype))
+        try:
+
+            if device.states['deviceIsOnline'] == False:
+                self.logger.debug(u'Trigger Cancelled as Device is Not Online')
+                return
+
+            for triggerId, trigger in sorted(self.triggers.iteritems()):
+
+                self.logger.debug("Checking Trigger %s (%s), Type: %s,  and event : %s" % (trigger.name, trigger.id, trigger.pluginTypeId,  triggertype))
+                #self.logger.error(unicode(trigger))
+                if trigger.pluginTypeId == "gridLoss" and triggertype =='gridLoss':
+                    if self.debugtriggers:
+                        self.logger.debug("===== Executing gridLoss Trigger %s (%d)" % (trigger.name, trigger.id))
+                    indigo.trigger.execute(trigger)
+                elif trigger.pluginTypeId == "gridRestored" and triggertype =='gridRestored':
+                    if self.debugtriggers:
+                        self.logger.debug("===== Executing Grid Restored Trigger %s (%d)" % (trigger.name, trigger.id))
+                    indigo.trigger.execute(trigger)
+                elif trigger.pluginTypeId == "batteryCharging" and triggertype =='batteryCharging':
+                    if self.debugtriggers:
+                        self.logger.debug("===== Executing Battery Starts Charging Trigger %s (%d)" % (trigger.name, trigger.id))
+                    indigo.trigger.execute(trigger)
+                elif trigger.pluginTypeId == "batteryDischarging" and triggertype =='batteryDischarging':
+                    if self.debugtriggers:
+                        self.logger.debug("===== Executing Battery Starts Discharging Trigger %s (%d)" % (trigger.name, trigger.id))
+                    indigo.trigger.execute(trigger)
+                else:
+                    if self.debugtriggers:
+                        self.logger.debug("Not Run Trigger Type %s (%d), %s" % (trigger.name, trigger.id, trigger.pluginTypeId))
+        except:
+            self.logger.exception(u'Exception within Trigger Check')
+            return
 
 

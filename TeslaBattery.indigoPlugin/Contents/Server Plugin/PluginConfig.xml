@@ -79,9 +79,9 @@
         <Label/>
         <Description>Debug Extra 1</Description>
     </Field>
-    <Field id="debugextra2" type="checkbox" tooltip="Enabling will result Debuggin Distance Matrix API showing maps.">
+    <Field id="debugtriggers" type="checkbox" tooltip="Enabling will result Debuggin Distance Matrix API showing maps.">
         <Label/>
-        <Description>Debug Extra 2</Description>
+        <Description>Debug Triggers</Description>
     </Field>
     <Field id="debugextra3" type="checkbox" tooltip="Enabling will result Debugging Geofence Log Creation.">
         <Label/>
