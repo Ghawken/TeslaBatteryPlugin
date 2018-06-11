@@ -3,7 +3,9 @@
 
 """
 Tesla - Battery Control
-0.1.5
+0.2.2
+Prelim Version
+
 
 """
 import logging
