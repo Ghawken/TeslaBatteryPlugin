@@ -189,6 +189,21 @@
         <TriggerLabel>Battery Chariging?</TriggerLabel>
         <ControlPageLabel>Battery Charging?</ControlPageLabel>
       </State>
+       <State id="batteryDischarging">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Battery Dischariging?</TriggerLabel>
+        <ControlPageLabel>Battery Discharging?</ControlPageLabel>
+      </State>
+       <State id="solarGenerating">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Solar Generating Power?</TriggerLabel>
+        <ControlPageLabel>Solar Generating Power?</ControlPageLabel>
+      </State>
+       <State id="sendingtoGrid">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Sending Power to grid?</TriggerLabel>
+        <ControlPageLabel>Sending Power to Grid?</ControlPageLabel>
+      </State>
      <State id="deviceStatus">
         <ValueType>String</ValueType>
         <TriggerLabel>Device Status</TriggerLabel>

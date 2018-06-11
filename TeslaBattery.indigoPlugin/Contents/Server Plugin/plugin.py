@@ -472,31 +472,58 @@ class Plugin(indigo.PluginBase):
     def fillmetersinfo(self, data, device):
         self.logger.debug(u'fillmetersinfo called')
         try:
+            batterykW = float(data['battery']['instant_power'])/1000
+            #If is between 0 and -100 set to Zero
+            if -100 <= batterykW <=100:
+                batterykW = 0
+
+
             stateList = [
-                {'key': 'Solar', 'value': data['solar']['instant_apparent_power']},
-                {'key': 'Grid', 'value': data['site']['instant_apparent_power']},
-                {'key': 'Home', 'value': data['load']['instant_apparent_power']},
-                {'key': 'Battery', 'value': data['battery']['instant_apparent_power']},
-                {'key': 'SolarkW', 'value': "{0:0.1f}".format(data['solar']['instant_apparent_power']/1000)},
-                {'key': 'GridkW', 'value': "{0:0.1f}".format(data['site']['instant_apparent_power']/1000)},
-                {'key': 'HomekW', 'value': "{0:0.1f}".format(data['load']['instant_apparent_power']/1000)},
-                {'key': 'BatterykW', 'value': "{0:0.1f}".format(data['battery']['instant_apparent_power']/1000)}
+                {'key': 'Solar', 'value': data['solar']['instant_power']},
+                {'key': 'Grid', 'value': data['site']['instant_power']},
+                {'key': 'Home', 'value': data['load']['instant_power']},
+                {'key': 'Battery', 'value': data['battery']['instant_power']},
+                {'key': 'SolarkW', 'value': "{0:0.1f}".format(float(data['solar']['instant_power'])/1000)},
+                {'key': 'GridkW', 'value': "{0:0.1f}".format(float(data['site']['instant_power'])/1000)},
+                {'key': 'HomekW', 'value': "{0:0.1f}".format(float(data['load']['instant_power'])/1000)},
+                {'key': 'BatterykW', 'value': "{0:0.1f}".format( batterykW )}
             ]
+
             device.updateStatesOnServer(stateList)
             # add this as can't test negatives at momemnt - need rain to stoP!
             try:
                 #Grid Usage is essentially the summary
-                if float(data['site']['instant_apparent_power']) > 0 :
+                if float(data['site']['instant_power']) > 0 :
                     # Pulling something from Grid
                     device.updateStateOnServer('gridUsage', value=True)
                 else:
                     device.updateStateOnServer('gridUsage', value=False)
                     self.logger.debug(u'Grid Usage False')
-                if float(data['battery']['instant_apparent_power']) < 0:
+                if float(data['battery']['instant_power']) < -100:
                 # Pulling something from Grid
                     device.updateStateOnServer('batteryCharging', value=True)
                 else:
                     device.updateStateOnServer('batteryCharging', value=False)
+
+                if float(data['solar']['instant_power']) > 150:
+                    # Solar Generating more than 150 watts
+                    device.updateStateOnServer('solarGenerating', value=True)
+                else:
+                    device.updateStateOnServer('solarGenerating', value=False)
+
+                if float(data['site']['instant_power']) < -100:
+                    # Solar Generating more than 150 watts
+                    device.updateStateOnServer('sendingtoGrid', value=True)
+                else:
+                    device.updateStateOnServer('sendingtoGrid', value=False)
+
+                if float(data['battery']['instant_power']) > 150:
+                    # Solar Generating more than 150 watts
+                    device.updateStateOnServer('batteryDischarging', value=True)
+                else:
+                    device.updateStateOnServer('batteryDischarging', value=False)
+
+
 
             except:
                 self.logger.info(u'Error in Calculation')
