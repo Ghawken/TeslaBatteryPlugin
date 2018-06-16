@@ -168,6 +168,7 @@ class Plugin(indigo.PluginBase):
                 self.sleep(0.5)
                 updateMeters = t.time() +5
                 updateGrid = t.time() + 10
+                updateGridFaults = t.time() + 55
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
                 while self.prefsUpdated == False:
@@ -189,11 +190,19 @@ class Plugin(indigo.PluginBase):
                     if t.time() > updateGrid:
                         for dev in indigo.devices.itervalues('self.teslaGridStatus'):
                             self.updateGridStatus(dev)
-                        updateGrid = t.time() + 30
+                        updateGrid = t.time() + 10
+
+                    if t.time() > updateGridFaults:
+                        for dev in indigo.devices.itervalues('self.teslaGridStatus'):
+                            self.updateGridFaults(dev)
+                        updateGridFaults = t.time() + 120
 
                     if t.time() > updateSite:
                         for dev in indigo.devices.itervalues('self.teslaSite'):
                             self.updateSiteInfo(dev)
+                            # This can take up to 10 second to return
+                            # Hangs the whole plugin - could thread it - but no worth the bother
+                            #self.updateSitemaster(dev)
                         updateSite = t.time() + 600
 
                     if t.time() > updateBatt:
@@ -222,6 +231,22 @@ class Plugin(indigo.PluginBase):
         gridstatus = self.sendcommand('system_status/grid_status')
         if gridstatus is not None and gridstatus !='Offline':
             self.fillgridstatusinfo(gridstatus, dev)
+        return
+
+    def updateGridFaults(self, dev):
+        if self.debugextra:
+            self.logger.debug(u'update Tesla Grid Faults Called')
+        gridfaults = self.sendcommand('system_status/grid_faults')
+        if gridfaults is not None and gridfaults !='Offline':
+            self.fillgridfaults(gridfaults, dev)
+        return
+
+    def updateSitemaster(self, dev):
+        if self.debugextra:
+            self.logger.debug(u'update Tesla Site Master Called')
+        sitemaster = self.sendcommandslowtimeout('sitemaster')
+        if sitemaster is not None and sitemaster !='Offline':
+            self.fillsitemaster(sitemaster, dev)
         return
 
     def updateBattery(self, dev):
@@ -395,7 +420,46 @@ class Plugin(indigo.PluginBase):
 
         except Exception as error:
             self.errorLog(u'error within checkConnection'+unicode(error.message))
+    ##
+    def sendcommandslowtimeout(self, cmd):
 
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            self.url = "http://" + str(self.serverip) + '/api/'+ str(cmd)
+            if self.debugextra:
+                self.logger.debug(u'sendcommand called')
+
+            r = requests.get(self.url, timeout=10)
+
+            if r.status_code == 502:
+                self.logger.debug(u'Status code'+unicode(r.status_code) )
+                self.logger.debug(u'Text :'+unicode(r.text))  #r.text
+                self.logger.debug(u'Error Running command.  ?Powerwall offline')
+                return 'Offline'
+            if r.status_code != 200:
+                self.logger.debug(u'Status code'+unicode(r.status_code) )
+                self.logger.debug(u'Text :'+unicode(r.text))  #r.text
+                self.logger.debug(u'Error Running command')
+                return 'Offline'
+            else:
+                if self.debugextra:
+                    self.logger.debug(u'SUCCESS Text :' + unicode(r.text))
+
+            if self.debugextra:
+                self.logger.debug(u'sendcommand r.json result:'+ unicode(r.json()))
+
+            return r.json()
+
+        except requests.exceptions.Timeout:
+            self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
+            self.sleep(5)
+            pass
+        except requests.exceptions.ConnectionError:
+            self.logger.debug(u'sendCommand has ConnectionError and cannot connect to Gateway.')
+            self.sleep(5)
+            pass
     ## API Calls
     def sendcommand(self, cmd):
 
@@ -512,7 +576,7 @@ class Plugin(indigo.PluginBase):
                 else:
                     device.updateStateOnServer('batteryCharging', value=False)
 
-                if float(data['solar']['instant_power']) > 150:
+                if float(data['solar']['instant_power']) > 95:
                     # Solar Generating more than 150 watts
                     device.updateStateOnServer('solarGenerating', value=True)
                 else:
@@ -591,10 +655,14 @@ class Plugin(indigo.PluginBase):
                 # Grid must be restored
                 if gridConnected ==False:
                     self.triggerCheck(device, 'gridRestored')
+                    update_time = t.strftime('%c')
+                    device.updateStateOnServer('timeGridUp', value=str(update_time))
                 device.updateStateOnServer('gridConnected', value=True)
             elif data['grid_status'] == 'SystemIslandedActive' :
                 if gridConnected == True:
                     self.triggerCheck(device, 'gridLoss')
+                    update_time = t.strftime('%c')
+                    device.updateStateOnServer('timeGridLoss', value=str(update_time))
                 device.updateStateOnServer('gridConnected', value=False)
 
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
@@ -604,6 +672,42 @@ class Plugin(indigo.PluginBase):
         except:
             self.logger.exception(u'Caught Exception in FillGridStatus Info')
             device.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
+
+    def fillgridfaults(self, data, device):
+        self.logger.debug(u'fill grid faults info called')
+        try:
+            gridfaults = str(device.states['gridFaults'])
+
+            if str(data) != '[]':
+                self.logger.debug(u'Grid Faults -- BLANK --'+unicode(gridfaults))
+            if str(data) !=gridfaults and gridfaults != '[]':
+                # Data changed
+                self.triggerCheck(device,'gridFault')
+
+            device.updateStateOnServer('gridFaults', value=unicode(data))
+        except:
+            self.logger.exception(u'Caught Exception in Fill Grid faults Info')
+
+
+    def fillsitemaster(self, data, device):
+        self.logger.debug(u'fill grid SiteMaster called')
+        try:
+            sitemaster = device.states['sitemasterRunning']
+            self.logger.debug(u'sitemaster Running Equals:'+unicode(data['running']))
+
+            if data['running'] == 'true':
+                # Sitemaster must have started
+                if sitemaster == False:
+                    self.triggerCheck(device, 'sitemasterOn')
+                device.updateStateOnServer('sitemasterRunning', value=True)
+            elif data['running'] == 'false' :
+                if sitemaster == True:
+                    self.triggerCheck(device, 'sitemasterOff')
+                device.updateStateOnServer('sitemasterRunning', value=False)
+
+        except:
+            self.logger.exception(u'Caught Exception in fillsitemaster Info')
+            #device.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
 
 ##################  Trigger
 

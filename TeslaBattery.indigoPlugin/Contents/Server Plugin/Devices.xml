@@ -1,43 +1,6 @@
 <?xml version="1.0"?>
 <Devices>
 
-  <Device type="custom" id="teslaGateway">
-    <Name>Tesla Gateway Device</Name>
-   <States>
-      <State id="deviceIsOnline">
-        <ValueType>Boolean</ValueType>
-        <TriggerLabel>Device online?</TriggerLabel>
-        <ControlPageLabel>Device online?</ControlPageLabel>
-      </State>
-     <State id="deviceStatus">
-        <ValueType>String</ValueType>
-        <TriggerLabel>Device Status</TriggerLabel>
-        <ControlPageLabel>Device Status</ControlPageLabel>
-      </State>
-      <State id="deviceLastUpdated">
-        <ValueType>String</ValueType>
-        <TriggerLabel>Device Last Updated</TriggerLabel>
-        <ControlPageLabel>Device Last Updated</ControlPageLabel>
-      </State>
-      <State id="lastNumber">
-        <ValueType>Number</ValueType>
-        <TriggerLabel>Number of Phone</TriggerLabel>
-        <ControlPageLabel>Number of Phone</ControlPageLabel>
-      </State>
-      <State id="callType">
-        <ValueType>String</ValueType>
-        <TriggerLabel>Type of Call</TriggerLabel>
-        <ControlPageLabel>Type of Call</ControlPageLabel>
-      </State>
-      <State id="callTime">
-        <ValueType>Number</ValueType>
-        <TriggerLabel>Time of Last Call</TriggerLabel>
-        <ControlPageLabel>Time of Last Call</ControlPageLabel>
-      </State>
-   </States>
-    <UiDisplayStateId>deviceStatus</UiDisplayStateId>
-  </Device>
-
  <Device type="custom" id="teslaSite">
     <Name>Tesla Site Info</Name>
 
@@ -103,7 +66,7 @@
         <ControlPageLabel>Policy Region</ControlPageLabel>
       </State>
    </States>
-    <UiDisplayStateId>deviceStatus</UiDisplayStateId>
+    <UiDisplayStateId>sitename</UiDisplayStateId>
   </Device>
 
   <Device type="custom" id="teslaBattery">
@@ -132,7 +95,7 @@
       </State>
 
    </States>
-    <UiDisplayStateId>charge</UiDisplayStateId>
+    <UiDisplayStateId>chargeCP</UiDisplayStateId>
   </Device>
 
   <Device type="custom" id="teslaGridStatus">
@@ -149,10 +112,25 @@
         <TriggerLabel>Device Last Updated</TriggerLabel>
         <ControlPageLabel>Device Last Updated</ControlPageLabel>
       </State>
-      <State id="gridStatus">
+       <State id="timeGridLoss">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Time of Last Grid Loss</TriggerLabel>
+        <ControlPageLabel>Time of Last Grid Loss</ControlPageLabel>
+      </State>
+        <State id="timeGridUp">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Time of Last Grid Up</TriggerLabel>
+        <ControlPageLabel>Time of Last Grid Up</ControlPageLabel>
+      </State>
+       <State id="gridStatus">
         <ValueType>String</ValueType>
         <TriggerLabel>Status of Grid Connection</TriggerLabel>
         <ControlPageLabel>Status of Grid Connection</ControlPageLabel>
+      </State>
+       <State id="gridFaults">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Grid Faults</TriggerLabel>
+        <ControlPageLabel>Grid Faults</ControlPageLabel>
       </State>
      <State id="gridConnected">
         <ValueType>Boolean</ValueType>
@@ -161,8 +139,9 @@
       </State>
 
 
+
    </States>
-    <UiDisplayStateId>gridStatus</UiDisplayStateId>
+    <UiDisplayStateId>gridConnected</UiDisplayStateId>
   </Device>
 
   <Device type="custom" id="teslaMeters">
