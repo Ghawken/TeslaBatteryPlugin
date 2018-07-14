@@ -17,6 +17,8 @@ import shutil
 import sys
 import requests
 import json
+import subprocess
+import threading
 
 from ghpu import GitHubPluginUpdater
 
@@ -79,6 +81,8 @@ class Plugin(indigo.PluginBase):
 
         self.openStore = self.pluginPrefs.get('openStore', False)
         self.serverip = self.pluginPrefs.get('ipAddress', '')
+
+        self.version = '0.0.0'
 
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
             indigo.devices.folder.create('Tesla Battery Gateway')
@@ -241,6 +245,7 @@ class Plugin(indigo.PluginBase):
             self.fillgridfaults(gridfaults, dev)
         return
 
+# Below not used and not compatible wth 1.20.0 and above Tesla Software
     def updateSitemaster(self, dev):
         if self.debugextra:
             self.logger.debug(u'update Tesla Site Master Called')
@@ -463,34 +468,44 @@ class Plugin(indigo.PluginBase):
     ## API Calls
     def sendcommand(self, cmd):
 
+        ## 1.20.0 Changes to https and SSL for Tesla Software
+        # Not backward compatible with others... annoyingly
+        # Use CURL to avoid dreaded SSL Error because of library issues
+        #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
+        # curl can't timeout - attempt to use threading
+
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
             return
         try:
-            self.url = "http://" + str(self.serverip) + '/api/'+ str(cmd)
+            self.url = "https://" + str(self.serverip) + '/api/'+ str(cmd)
             if self.debugextra:
                 self.logger.debug(u'sendcommand called')
 
-            r = requests.get(self.url, timeout=2)
 
-            if r.status_code == 502:
-                self.logger.debug(u'Status code'+unicode(r.status_code) )
-                self.logger.debug(u'Text :'+unicode(r.text))  #r.text
+            f = subprocess.Popen(["curl", '-sk', self.url], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+            # '-H', str(headers), "-k",
+            out, err = f.communicate()
+            self.logger.debug(u'HTTPS CURL result:' + unicode(err))
+            self.logger.debug(u'ReturnCode:{0}'.format(unicode(f.returncode)))
+            self.sleep(0.2)
+
+            #r = requests.get(self.url, timeout=2)
+            if (int(f.returncode) == 0):
+                data = json.loads(out)
+                if self.debugextra:
+                    self.logger.debug(u'SUCCESS Text :' + unicode(data))
+                    self.logger.debug(u'Json results:' + unicode(data))
+            else:
+                self.logger.debug(u'ReturnCode:'+unicode(f.returncode) )
+                self.logger.debug(u'Text :'+unicode(f.stderr))  #r.text
                 self.logger.debug(u'Error Running command.  ?Powerwall offline')
                 return 'Offline'
-            if r.status_code != 200:
-                self.logger.debug(u'Status code'+unicode(r.status_code) )
-                self.logger.debug(u'Text :'+unicode(r.text))  #r.text
-                self.logger.debug(u'Error Running command')
-                return 'Offline'
-            else:
-                if self.debugextra:
-                    self.logger.debug(u'SUCCESS Text :' + unicode(r.text))
 
             if self.debugextra:
-                self.logger.debug(u'sendcommand r.json result:'+ unicode(r.json()))
+                self.logger.debug(u'sendcommand r.json result:'+ unicode(json.loads(out)))
 
-            return r.json()
+            return json.loads(out)
 
         except requests.exceptions.Timeout:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
@@ -561,10 +576,14 @@ class Plugin(indigo.PluginBase):
 
             try:
                 #Grid Usage is essentially the summary
-                if float(data['site']['instant_power']) > 0 :
+                # don't grid usage True/False unless more than 250 Watts being used or more than -100 being generated
+                # Avoids flipping on and off when battery charging pulling etc.
+                # Could add user adjustable level?
+
+                if float(data['site']['instant_power']) > 250 :
                     # Pulling something from Grid
                     device.updateStateOnServer('gridUsage', value=True)
-                else:
+                elif float(data['site']['instant_power']) < -100 :
                     device.updateStateOnServer('gridUsage', value=False)
                     self.logger.debug(u'Grid Usage False')
 
@@ -587,7 +606,7 @@ class Plugin(indigo.PluginBase):
                     if sendingtoGrid == False:
                         self.triggerCheck(device, 'solarExporting')
                     device.updateStateOnServer('sendingtoGrid', value=True)
-                else:
+                elif float(data['site']['instant_power']) > 100:
                     device.updateStateOnServer('sendingtoGrid', value=False)
 
                 if float(data['battery']['instant_power']) > 150:

@@ -188,7 +188,7 @@ class GitHubPluginUpdater(object):
 		if (int(f.returncode) == 0):
 			data = json.loads(out)
 			self.logger.debug(u'Json results:'+unicode(data))
-		elif (400 <= f.status < 500):
+		elif (400 <= f.returncode < 500):
 			error = json.loads(out)
 			self.logger.error('%s' % error['message'])
 		else:
