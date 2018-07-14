@@ -19,6 +19,7 @@ import requests
 import json
 import subprocess
 import threading
+from threading import Timer
 
 from ghpu import GitHubPluginUpdater
 
@@ -412,6 +413,8 @@ class Plugin(indigo.PluginBase):
             self.debugLog(u'check Connection run')
         try:
             # check Gatewway and IP up
+
+            self.serverip = valuesDict['ipAddress']
             check = self.sendcommand('site_info/site_name')
             self.logger.debug(unicode(check))
             if check is None or check == 'Offline':
@@ -466,13 +469,31 @@ class Plugin(indigo.PluginBase):
             self.sleep(5)
             pass
     ## API Calls
+    # def sendcommand(self, cmd):
+    #     # change to threading given CURL and timeouts.. sigh...
+    #     SendCommand = threading.Thread(target=self.Threadsendcommand,
+    #                                        args=[self, cmd])
+    #     timerkill= Timer(3,SendCommand.kill)
+    #     try:
+    #         SendCommand.start()
+    #
+    #         SendCommand.join(10)
+
+
+
+
     def sendcommand(self, cmd):
+
+        if self.debugextra:
+            self.logger.debug(u'ThreadSendCOmmand called. Number of Active Threads:' + unicode(
+                    threading.activeCount()))
 
         ## 1.20.0 Changes to https and SSL for Tesla Software
         # Not backward compatible with others... annoyingly
         # Use CURL to avoid dreaded SSL Error because of library issues
         #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
         # curl can't timeout - attempt to use threading
+
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
@@ -484,11 +505,18 @@ class Plugin(indigo.PluginBase):
 
 
             f = subprocess.Popen(["curl", '-sk', self.url], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+            ## below is 3 second timeout...
+            timerkill = Timer(3, f.kill)
+
+            try:
+                timerkill.start()
             # '-H', str(headers), "-k",
-            out, err = f.communicate()
-            self.logger.debug(u'HTTPS CURL result:' + unicode(err))
-            self.logger.debug(u'ReturnCode:{0}'.format(unicode(f.returncode)))
-            self.sleep(0.2)
+                out, err = f.communicate()
+                self.logger.debug(u'HTTPS CURL result:' + unicode(err))
+                self.logger.debug(u'ReturnCode:{0}'.format(unicode(f.returncode)))
+                self.sleep(0.2)
+            finally:
+                timerkill.cancel()
 
             #r = requests.get(self.url, timeout=2)
             if (int(f.returncode) == 0):
@@ -507,14 +535,11 @@ class Plugin(indigo.PluginBase):
 
             return json.loads(out)
 
-        except requests.exceptions.Timeout:
+        except IOError:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
             self.sleep(5)
             pass
-        except requests.exceptions.ConnectionError:
-            self.logger.debug(u'sendCommand has ConnectionError and cannot connect to Gateway.')
-            self.sleep(5)
-            pass
+
     # Fill Device with Info
     def fillsiteinfo(self, data, device):
         self.logger.debug(u'fillsiteinfo called')
