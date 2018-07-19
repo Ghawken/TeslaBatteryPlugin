@@ -479,7 +479,11 @@ class Plugin(indigo.PluginBase):
     #
     #         SendCommand.join(10)
 
-
+    def killcurl(self, cmd, f):
+    # call this to report timeouts from subprocess curl to Indigo
+        if self.debugextra:
+            self.logger.debug(u'TimeOut for Curl Subprocess. Called command:'+unicode(cmd))
+        f.kill()
 
 
     def sendcommand(self, cmd):
@@ -502,11 +506,10 @@ class Plugin(indigo.PluginBase):
             self.url = "https://" + str(self.serverip) + '/api/'+ str(cmd)
             if self.debugextra:
                 self.logger.debug(u'sendcommand called')
-
-
-            f = subprocess.Popen(["curl", '-sk', self.url], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+            f = subprocess.Popen(["curl", '-sk', self.url], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             ## below is 3 second timeout...
-            timerkill = Timer(3, f.kill)
+            #timerkill = Timer(3, f.kill)
+            timerkill = threading.Timer(3, self.killcurl, [cmd,f])
 
             try:
                 timerkill.start()
@@ -514,7 +517,7 @@ class Plugin(indigo.PluginBase):
                 out, err = f.communicate()
                 self.logger.debug(u'HTTPS CURL result:' + unicode(err))
                 self.logger.debug(u'ReturnCode:{0}'.format(unicode(f.returncode)))
-                self.sleep(0.2)
+                #self.sleep(0.2)
             finally:
                 timerkill.cancel()
 
@@ -538,7 +541,7 @@ class Plugin(indigo.PluginBase):
         except IOError:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
             self.sleep(5)
-            pass
+            return 'Offline'
 
     # Fill Device with Info
     def fillsiteinfo(self, data, device):
