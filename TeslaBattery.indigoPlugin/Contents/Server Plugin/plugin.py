@@ -15,18 +15,26 @@ import urllib2
 import os
 import shutil
 import sys
+import platform
 import requests
 import json
 import subprocess
 import threading
 from threading import Timer
 
-from ghpu import GitHubPluginUpdater
 
 try:
     import indigo
 except:
     pass
+
+__author__ = "GlennNZ"
+__build__ = "Unused"
+__copyright__ = "Copyright 2017-2019 GlennNZ"
+__license__ = "MIT"
+__title__ = "TeslaBattery IndigoPlugin"
+__version__ = "0.3.9"
+
 
 # Establish default plugin prefs; create them if they don't already exist.
 kDefaultPluginPrefs = {
@@ -56,7 +64,9 @@ class Plugin(indigo.PluginBase):
         self.logger.info(u"{0:<30} {1}".format("Plugin ID:", pluginId))
         self.logger.info(u"{0:<30} {1}".format("Indigo version:", indigo.server.version))
         self.logger.info(u"{0:<30} {1}".format("Python version:", sys.version.replace('\n', '')))
-        self.logger.info(u"{0:<30} {1}".format("Python Directory:", sys.prefix.replace('\n', '')))
+        self.logger.info(u"{0:<31} {1}".format("Mac OS Version:", platform.mac_ver()[0]))
+        self.logger.info(u"{0:<31} {1}".format("Process ID:", os.getpid() ))
+
         self.logger.info(u"{0:=^130}".format(""))
 
         pfmt = logging.Formatter('%(asctime)s.%(msecs)03d\t[%(levelname)8s] %(name)20s.%(funcName)-25s%(msg)s',
@@ -146,18 +156,6 @@ class Plugin(indigo.PluginBase):
     ###
     ###  Update ghpu Routines.
 
-    def checkForUpdates(self):
-
-        updateavailable = self.updater.getLatestVersion()
-        if updateavailable and self.openStore:
-            self.logger.info(u'Tesla Battery: Update Checking.  Update is Available.  Taking you to plugin Store. ')
-            self.sleep(2)
-            self.pluginstoreUpdate()
-        elif updateavailable and not self.openStore:
-            self.errorLog(u'Tesla Battery: Update Checking.  Update is Available.  Please check Store for details/download.')
-
-    def updatePlugin(self):
-        self.updater.update()
 
     def pluginstoreUpdate(self):
         iurl = 'http://www.indigodomo.com/pluginstore/'
@@ -177,15 +175,6 @@ class Plugin(indigo.PluginBase):
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
                 while self.prefsUpdated == False:
-                    if self.updateFrequency > 0:
-                        if t.time() > self.next_update_check:
-                            try:
-                                self.checkForUpdates()
-                                self.next_update_check = t.time() + self.updateFrequency
-                            except:
-                                self.logger.debug(
-                                    u'Error checking for update - ? No Internet connection.  Checking again in 24 hours')
-                                self.next_update_check = self.next_update_check + 86400
 
                     if t.time() > updateMeters:
                         for dev in indigo.devices.itervalues('self.teslaMeters'):
@@ -279,7 +268,7 @@ class Plugin(indigo.PluginBase):
     def startup(self):
         if self.debugextra:
             self.debugLog(u"Starting Plugin. startup() method called.")
-        self.updater = GitHubPluginUpdater(self)
+
 
     def validatePrefsConfigUi(self, valuesDict):
         if self.debugextra:
@@ -522,7 +511,7 @@ class Plugin(indigo.PluginBase):
                 timerkill.cancel()
 
             #r = requests.get(self.url, timeout=2)
-            if (int(f.returncode) == 0):
+            if (int(f.returncode) == 0) and out is not None and out !='':
                 data = json.loads(out)
                 if self.debugextra:
                     self.logger.debug(u'SUCCESS Text :' + unicode(data))
@@ -549,18 +538,49 @@ class Plugin(indigo.PluginBase):
         try:
             if self.debugextra:
                 self.logger.debug(u'data:'+unicode(data))
+            site_name=''
+            timezone=''
+            nominal_system_energy_kWh = ''
+            grid_code=''
+            grid_voltage_setting=''
+            grid_freq_setting =''
+            grid_phase_setting=''
+            country=''
+            state=''
+            region = ''
+
+            if 'site_name' in data:
+                site_name = data['site_name']
+            if 'timezone' in data:
+                timezone = data['timezone']
+            if 'nominal_system_energy_kWh' in data:
+                nominal_system_energy_kWh = data['nominal_system_energy_kWh']
+            if 'grid_code' in data:
+                grid_code = data['grid_code']
+            if 'grid_voltage_setting' in data:
+                grid_voltage_setting = data['grid_voltage_setting']
+            if 'grid_freq_setting' in data:
+                grid_freq_setting = data['grid_freq_setting']
+            if 'grid_phase_setting' in data:
+                grid_phase_setting = data['grid_phase_setting']
+            if 'country' in data:
+                country = data['country']
+            if 'state' in data:
+                state = data['state']
+            if 'region' in data:
+                region = data['region']
 
             stateList = [
-                {'key': 'sitename', 'value': data['site_name']},
-                {'key': 'timezone', 'value': data['timezone']},
-                {'key': 'nominalEnergy', 'value': data['nominal_system_energy_kWh']},
-                {'key': 'gridCode', 'value': data['grid_code']},
-                {'key': 'gridVoltage', 'value': data['grid_voltage_setting']},
-                {'key': 'gridFreq', 'value': data['grid_freq_setting']},
-                {'key': 'gridPhase', 'value': data['grid_phase_setting']},
-                {'key': 'country', 'value': data['country']},
-                {'key': 'state', 'value': data['state']},
-                {'key': 'region', 'value': data['region']}
+                {'key': 'sitename', 'value': site_name},
+                {'key': 'timezone', 'value': timezone},
+                {'key': 'nominalEnergy', 'value': nominal_system_energy_kWh},
+                {'key': 'gridCode', 'value': grid_code},
+                {'key': 'gridVoltage', 'value': grid_voltage_setting},
+                {'key': 'gridFreq', 'value': grid_freq_setting},
+                {'key': 'gridPhase', 'value': grid_phase_setting},
+                {'key': 'country', 'value': country},
+                {'key': 'state', 'value': state},
+                {'key': 'region', 'value': region}
                 ]
             device.updateStatesOnServer(stateList)
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
@@ -572,7 +592,7 @@ class Plugin(indigo.PluginBase):
         except:
             self.logger.exception(u'Caught Exception in fillsiteinfo')
             device.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
-            device.updateStateOnServer('deviceStatus', value='Offline')
+            #device.updateStateOnServer('deviceStatus', value='Offline')
             device.updateStateImageOnServer(indigo.kStateImageSel.EnergyMeterOff)
     ##
     def fillmetersinfo(self, data, device):
