@@ -1,6 +1,27 @@
 <?xml version="1.0"?>
 <Actions>
+      <Action id="setOperationMode">
+        <Name>Set Operational Mode</Name>
+        <CallbackMethod>setOperationalMode</CallbackMethod>
+        <ConfigUI>
+           	<Field id="mode" type="menu" defaultValue="autonomous">
+				<Label>Operational Mode:</Label>
+				<List>
+					<Option value="self_consumption">Self Consumption</Option>
+					<Option value="autonomous">Autonomous</Option>
+					<Option value="backup">Backup</Option>
+					<Option value="scheduler">Scheduler</Option>
+				</List>
+            </Field>
+            <Field id="reserve"
+				   type="textfield"
+				   tooltip=""
+				   default=""                   >
+				<Label>Battery Reserve Percentage:</Label>
+			</Field>
 
+        </ConfigUI>
+    </Action>
 
   
 </Actions>
