@@ -578,7 +578,7 @@ class Plugin(indigo.PluginBase):
 
         self.password = self.serialnumber
         self.pairingToken = self.getauthToken()
-        self.pairingToken ="wontwork"
+      #  self.pairingToken ="wontwork"
         self.changeOperation(mode, reserve)
 
 
