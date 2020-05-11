@@ -88,6 +88,27 @@
         <Label>
             Tesla Gateway Serial Number - optional if controlling powerwall</Label>
       </Field>
+          <Field
+        id="username" type="textfield">
+        <Label>Username/Email</Label>
+      </Field>
+      <Field id="example23" type="label" fontSize="small" fontColor="black" alignText="right" >
+        <Label> Tesla Gateway Email Username - optional if controlling powerwall</Label>
+      </Field>
+          <Field
+        id="password" type="textfield">
+        <Label>Password</Label>
+      </Field>
+      <Field id="example33" type="label" fontSize="small" fontColor="black" alignText="right" >
+        <Label> Tesla Gateway Password - optional if controlling powerwall</Label>
+      </Field>
+              <Field
+        id="serialnumber" type="textfield">
+        <Label>Gateway Serial Number</Label>
+      </Field>
+      <Field id="example133" type="label" fontSize="small" fontColor="black" alignText="right" >
+        <Label> Tesla Gateway Serial Number - optional if controlling powerwall</Label>
+      </Field>
          <Field id="sep2a" type="separator"/>
 
     <Field id="testConnection"
