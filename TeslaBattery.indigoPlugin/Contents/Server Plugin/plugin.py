@@ -21,6 +21,7 @@ import json
 import subprocess
 import threading
 from threading import Timer
+import requests
 
 
 try:
@@ -92,7 +93,9 @@ class Plugin(indigo.PluginBase):
 
         self.openStore = self.pluginPrefs.get('openStore', False)
         self.serverip = self.pluginPrefs.get('ipAddress', '')
-
+        self.username = self.pluginPrefs.get('username', '')
+        self.password = self.pluginPrefs.get('password', '')
+        self.serialnumber = self.pluginPrefs.get('serialnumber', '')
         self.version = '0.0.0'
 
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
@@ -121,6 +124,9 @@ class Plugin(indigo.PluginBase):
             self.debugextra = valuesDict.get('debugextra', False)
             self.debugtriggers = valuesDict.get('debugtriggers', False)
             self.serverip = valuesDict.get('ipAddress', '')
+            self.username = valuesDict.get('username', '')
+            self.password = valuesDict.get('password', '')
+            self.serialnumber = valuesDict.get('serialnumber', '')
             self.prefsUpdated = True
             self.updateFrequency = float(valuesDict.get('updateFrequency', "24")) * 60.0 * 60.0
 
@@ -473,6 +479,110 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'TimeOut for Curl Subprocess. Called command:'+unicode(cmd))
         f.kill()
+
+    def getauthToken(self):
+
+        if self.debugextra:
+            self.logger.debug(u'Thread Send Login Basic called. Number of Active Threads:' + unicode(
+                    threading.activeCount()))
+
+        ## 1.20.0 Changes to https and SSL for Tesla Software
+        # Not backward compatible with others... annoyingly
+        # Use CURL to avoid dreaded SSL Error because of library issues
+        #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
+        # curl can't timeout - attempt to use threading
+
+        ## also - using requests here which means incompatibities for some versions of iMAC
+
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            url = "https://" + str(self.serverip) + '/api/login/Basic'
+            payload = {'username': "installer", 'password': self.password, 'email': self.username, 'force_sm_off': False }
+           # payload = "{"username":"customer","email":"***REMOVED***","password":"***REMOVED***","force_sm_off":false}"
+            r = requests.post(url=url, data=payload, timeout=10, verify=False)
+            self.logger.debug("Calling "+unicode(url)+" with payload:"+unicode(payload))
+            self.pairingToken = ""
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+                if 'token' in jsonResponse:
+                    self.logger.debug(jsonResponse['token'])
+                    self.pairingToken = jsonResponse['token']
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+            ## pairingToken should exists
+            if self.pairingToken == "":
+                self.logger.info("No Token received?  Ending.")
+                return ""
+
+
+        except Exception, e:
+            self.logger.exception("Error getting Token : " + repr(e))
+            self.logger.debug( "Error connecting"+unicode(e.message))
+            self.connected = False
+
+    def changeOperation(self, mode, reservepercentage):
+
+        if self.debugextra:
+            self.logger.debug(u'Change Operation called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+
+        ## 1.20.0 Changes to https and SSL for Tesla Software
+        # Not backward compatible with others... annoyingly
+        # Use CURL to avoid dreaded SSL Error because of library issues
+        #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
+        # curl can't timeout - attempt to use threading
+
+        ## also - using requests here which means incompatibities for some versions of iMAC
+
+        percentage = float("%.1f" % float(reservepercentage))
+
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            url = "https://" + str(self.serverip) + '/api/operation'
+            headers = {'Authorization':'Bearer '+self.pairingToken  }
+
+            payload = {'mode': mode, 'backup_reserve_percent': percentage}
+            self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
+
+            r = requests.post(url=self.url, data=payload, timeout=10, verify=False)
+
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+                if 'mode' in jsonResponse:
+                    self.logger.debug(jsonResponse['mode'])
+                    if str(jsonResponse['mode']) != str(mode):
+                        self.logger.error(unicode("Did not change mode correctly!!"))
+                        return
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+
+        except Exception, e:
+            self.logger.exception("Error setting Operation : " + repr(e))
+            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.connected = False
+
+    def setOperationalMode(self, action):
+        self.logger.debug(u"setFanSpeed Called as Action.")
+        mode = action.props.get('mode',"")
+        reserve = action.props.get("reserve","")
+
+        self.password = self.serialnumber
+        self.pairingToken = self.getauthToken()
+        self.pairingToken ="wontwork"
+        self.changeOperation(mode, reserve)
+
+
+        return
 
 
     def sendcommand(self, cmd):
