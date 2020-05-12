@@ -499,7 +499,7 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/login/Basic'
-            payload = {'username': "installer", 'password': str(self.password), 'email': str(self.username), 'force_sm_off': False }
+            payload = {"username": "installer", "password": str(self.password), "email": str(self.username), "force_sm_off": False }
            # payload = "{"username":"customer","email":"ghawken@hotkey.net.au","password":"7yhrheu5","force_sm_off":false}"
             r = requests.post(url=url, data=payload, timeout=10, verify=False)
             self.logger.debug("Calling "+unicode(url)+" with payload:"+unicode(payload))
@@ -549,10 +549,10 @@ class Plugin(indigo.PluginBase):
             url = "https://" + str(self.serverip) + '/api/operation'
             headers = {'Authorization': 'Bearer '+str(self.pairingToken)  }
 
-            payload = {'mode': str(mode), 'backup_reserve_percent': percentage}
+            payload = {"mode": str(mode), "backup_reserve_percent": percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=url, json=payload, headers=headers,timeout=10, verify=False)
+            r = requests.post(url=url, data=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
