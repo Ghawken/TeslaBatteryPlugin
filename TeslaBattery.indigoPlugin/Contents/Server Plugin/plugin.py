@@ -589,7 +589,9 @@ class Plugin(indigo.PluginBase):
                 self.getauthToken()
                 self.setsitemasterRun()
             else:
-                self.logger.error("change Operation failed.")
+                self.logger.error("change Operation failed.  Unsure why.  Check error message.")
+                self.logger.error("Restarting Sitemaster")
+                self.setsitemasterRun()
                 return
         else:
             self.logger.error("Failed to get Installer Pairing token.  Serial number should be installer password.")
