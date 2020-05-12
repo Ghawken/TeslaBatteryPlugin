@@ -552,7 +552,7 @@ class Plugin(indigo.PluginBase):
             payload = {'mode': str(mode), 'backup_reserve_percent': percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=url, data=payload, headers=headers,timeout=10, verify=False)
+            r = requests.post(url=url, json=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
@@ -618,7 +618,6 @@ class Plugin(indigo.PluginBase):
 
             if r.status_code == 202:
                 self.logger.debug(unicode(r.text))
-                jsonResponse = r.json()
                 self.logger.info("Sitemaster now Running again,following command success")
             else:
                 self.logger.error(unicode(r.text))
@@ -650,7 +649,7 @@ class Plugin(indigo.PluginBase):
 
             if r.status_code == 202:
                 self.logger.debug(unicode(r.text))
-                jsonResponse = r.json()
+                self.logger.debug("Set Config Successfully run")
             else:
                 self.logger.error(unicode(r.text))
                 return ""
