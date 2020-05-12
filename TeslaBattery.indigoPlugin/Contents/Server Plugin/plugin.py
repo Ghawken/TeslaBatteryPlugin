@@ -83,7 +83,7 @@ class Plugin(indigo.PluginBase):
         self.indigo_log_handler.setLevel(self.logLevel)
         self.logger.debug(u"logLevel = " + str(self.logLevel))
         self.triggers = {}
-
+        self.changingoperationalmode = False
         #self.debug = self.pluginPrefs.get('showDebugInfo', False)
         #self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
         self.debugextra = self.pluginPrefs.get('debugextra', False)
@@ -541,7 +541,7 @@ class Plugin(indigo.PluginBase):
 
         percentage = float("%.1f" % float(reservepercentage))
 
-        percentage = int(reservepercentage)
+        #percentage = int(reservepercentage)
 
         self.logger.debug("Reserve Percentage is :"+unicode(percentage)+" and prior "+unicode(reservepercentage))
 
@@ -577,6 +577,7 @@ class Plugin(indigo.PluginBase):
 
     def setOperationalMode(self, action):
         self.logger.debug(u"setOperational Mode Called as Action.")
+        self.changingoperationalmode = True
         self.logger.debug(unicode(action))
 
         mode = action.props.get('mode',"")
@@ -589,16 +590,17 @@ class Plugin(indigo.PluginBase):
             if self.changeOperation(mode, reserve):  ## success do the rest
                 self.setconfigCompleted()
         # now cycle Powerwall
-                self.getauthToken()
+                #self.getauthToken()
                 self.setsitemasterRun()
             else:
                 self.logger.info("change Operation failed.  Unsure why.  Check error message.")
                 self.logger.info("Restarting Sitemaster.")
                 self.setsitemasterRun()
-                return
+
         else:
             self.logger.error("Failed to get Installer Pairing token.  Serial number should be installer password.")
 
+        self.changingoperationalmode = False
         return
 
     def setsitemasterRun(self):
@@ -630,7 +632,7 @@ class Plugin(indigo.PluginBase):
         except Exception, e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
             self.logger.debug("Error setting Operation" + unicode(e.message))
-            self.connected = False
+
 
     def setconfigCompleted(self):
 
@@ -673,6 +675,9 @@ class Plugin(indigo.PluginBase):
         #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
         # curl can't timeout - attempt to use threading
 
+        if self.changingoperationalmode:
+            self.logger.debug("Changing Operational Mode pausing updating Powerwall")
+            return
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
