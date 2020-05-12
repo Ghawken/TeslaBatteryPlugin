@@ -540,6 +540,9 @@ class Plugin(indigo.PluginBase):
         ## also - using requests here which means incompatibities for some versions of iMAC
 
         percentage = float("%.1f" % float(reservepercentage))
+
+        percentage = int(reservepercentage)
+
         self.logger.debug("Reserve Percentage is :"+unicode(percentage)+" and prior "+unicode(reservepercentage))
 
         if self.serverip == '':
@@ -557,9 +560,9 @@ class Plugin(indigo.PluginBase):
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
                 jsonResponse = r.json()
-                if 'mode' in jsonResponse:
-                    self.logger.debug(jsonResponse['mode'])
-                    if str(jsonResponse['mode']) != str(mode):
+                if 'real_mode' in jsonResponse:
+                    self.logger.debug(jsonResponse['real_mode'])
+                    if str(jsonResponse['real_mode']) != str(mode):
                         self.logger.error(unicode("Did not change mode correctly!!"))
                         return False
                     return True
@@ -601,7 +604,7 @@ class Plugin(indigo.PluginBase):
     def setsitemasterRun(self):
 
         if self.debugextra:
-            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'setSiteMasterRun called. Number of Active Threads:' + unicode(
                 threading.activeCount()))
 
         if self.serverip == '':
@@ -641,9 +644,7 @@ class Plugin(indigo.PluginBase):
         try:
             url = "https://" + str(self.serverip) + '/api/config/completed'
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
-
-            self.logger.debug(
-                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) )
 
             r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
