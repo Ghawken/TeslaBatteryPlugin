@@ -499,7 +499,7 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/login/Basic'
-            payload = {'username': "installer", 'password': str(self.password), 'email': str(self.username), 'force_sm_off': False }
+            payload = {"username": "installer", "password": str(self.password), "email": str(self.username), "force_sm_off": False }
            # payload = "{"username":"customer","email":"ghawken@hotkey.net.au","password":"***REMOVED***","force_sm_off":false}"
             r = requests.post(url=url, data=payload, timeout=10, verify=False)
             self.logger.debug("Calling "+unicode(url)+" with payload:"+unicode(payload))
@@ -540,18 +540,19 @@ class Plugin(indigo.PluginBase):
         ## also - using requests here which means incompatibities for some versions of iMAC
 
         percentage = float("%.1f" % float(reservepercentage))
+        self.logger.debug("Reserve Percentage is :"+unicode(percentage)+" and prior "+unicode(reservepercentage))
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
-            return
+            return False
         try:
             url = "https://" + str(self.serverip) + '/api/operation'
-            headers = {'Authorization':'Bearer '+self.pairingToken  }
+            headers = {'Authorization': 'Bearer '+str(self.pairingToken)  }
 
-            payload = {'mode': str(mode), 'backup_reserve_percent': percentage}
+            payload = {"mode": str(mode), "backup_reserve_percent": percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=self.url, data=payload, timeout=10, verify=False)
+            r = requests.post(url=url, data=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
@@ -560,11 +561,11 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(jsonResponse['mode'])
                     if str(jsonResponse['mode']) != str(mode):
                         self.logger.error(unicode("Did not change mode correctly!!"))
-                        return
+                        return False
+                    return True
             else:
                 self.logger.error(unicode(r.text))
-                return ""
-
+                return False
 
         except Exception, e:
             self.logger.exception("Error setting Operation : " + repr(e))
@@ -572,18 +573,92 @@ class Plugin(indigo.PluginBase):
             self.connected = False
 
     def setOperationalMode(self, action):
-        self.logger.debug(u"setFanSpeed Called as Action.")
+        self.logger.debug(u"setOperational Mode Called as Action.")
+        self.logger.debug(unicode(action))
+
         mode = action.props.get('mode',"")
         reserve = action.props.get("reserve","")
 
         self.password = self.serialnumber
-        self.pairingToken = self.getauthToken()
-        self.pairingToken ="wontwork"
-        self.changeOperation(mode, reserve)
+        self.getauthToken()
 
+        if self.pairingToken !="":
+            if self.changeOperation(mode, reserve):  ## success do the rest
+                self.setconfigCompleted()
+        # now cycle Powerwall
+                self.getauthToken()
+                self.setsitemasterRun()
+            else:
+                self.logger.error("change Operation failed.  Unsure why.  Check error message.")
+                self.logger.error("Restarting Sitemaster")
+                self.setsitemasterRun()
+                return
+        else:
+            self.logger.error("Failed to get Installer Pairing token.  Serial number should be installer password.")
 
         return
 
+    def setsitemasterRun(self):
+
+        if self.debugextra:
+            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            url = "https://" + str(self.serverip) + '/api/sitemaster/run'
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+
+            self.logger.debug(
+                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+
+            r = requests.get(url=url, timeout=10, headers=headers, verify=False)
+
+            if r.status_code == 202:
+                self.logger.debug(unicode(r.text))
+                self.logger.info("Sitemaster now Running again,following command success")
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+
+        except Exception, e:
+            self.logger.exception("Error setconfigComplete Operation : " + repr(e))
+            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.connected = False
+
+    def setconfigCompleted(self):
+
+        if self.debugextra:
+            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            url = "https://" + str(self.serverip) + '/api/config/completed'
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+
+            self.logger.debug(
+                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+
+            r = requests.get(url=url, timeout=10, headers=headers, verify=False)
+
+            if r.status_code == 202:
+                self.logger.debug(unicode(r.text))
+                self.logger.debug("Set Config Successfully run")
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+
+        except Exception, e:
+            self.logger.exception("Error setconfigComplete Operation : " + repr(e))
+            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.connected = False
 
     def sendcommand(self, cmd):
 
