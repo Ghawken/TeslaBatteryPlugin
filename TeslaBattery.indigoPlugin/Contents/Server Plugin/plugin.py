@@ -83,7 +83,7 @@ class Plugin(indigo.PluginBase):
         self.indigo_log_handler.setLevel(self.logLevel)
         self.logger.debug(u"logLevel = " + str(self.logLevel))
         self.triggers = {}
-
+        self.changingoperationalmode = False
         #self.debug = self.pluginPrefs.get('showDebugInfo', False)
         #self.debugLevel = self.pluginPrefs.get('showDebugLevel', "1")
         self.debugextra = self.pluginPrefs.get('debugextra', False)
@@ -97,7 +97,7 @@ class Plugin(indigo.PluginBase):
         self.password = self.pluginPrefs.get('password', '')
         self.serialnumber = self.pluginPrefs.get('serialnumber', '')
         self.version = '0.0.0'
-
+        self.pairingToken = ""
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
             indigo.devices.folder.create('Tesla Battery Gateway')
         self.folderId = indigo.devices.folders['Tesla Battery Gateway'].id
@@ -498,12 +498,13 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'No IP address Entered..')
             return
         try:
+            self.pairingToken = ""
             url = "https://" + str(self.serverip) + '/api/login/Basic'
             payload = {"username": "installer", "password": str(self.password), "email": str(self.username), "force_sm_off": False }
            # payload = "{"username":"customer","email":"ghawken@hotkey.net.au","password":"***REMOVED***","force_sm_off":false}"
-            r = requests.post(url=url, data=payload, timeout=10, verify=False)
-            self.logger.debug("Calling "+unicode(url)+" with payload:"+unicode(payload))
-            self.pairingToken = ""
+            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
+            r = requests.post(url=url, json=payload, timeout=20, verify=False)
+
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
                 jsonResponse = r.json()
@@ -521,7 +522,7 @@ class Plugin(indigo.PluginBase):
 
 
         except Exception, e:
-            self.logger.exception("Error getting Token : " + repr(e))
+            self.logger.debug("Error getting Token : " + repr(e))
             self.logger.debug( "Error connecting"+unicode(e.message))
             self.connected = False
 
@@ -540,6 +541,9 @@ class Plugin(indigo.PluginBase):
         ## also - using requests here which means incompatibities for some versions of iMAC
 
         percentage = float("%.1f" % float(reservepercentage))
+
+        #percentage = int(reservepercentage)
+
         self.logger.debug("Reserve Percentage is :"+unicode(percentage)+" and prior "+unicode(reservepercentage))
 
         if self.serverip == '':
@@ -549,17 +553,17 @@ class Plugin(indigo.PluginBase):
             url = "https://" + str(self.serverip) + '/api/operation'
             headers = {'Authorization': 'Bearer '+str(self.pairingToken)  }
 
-            payload = {"mode": str(mode), "backup_reserve_percent": percentage}
+            payload = {"real_mode": str(mode), "backup_reserve_percent": percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=url, data=payload, headers=headers,timeout=10, verify=False)
+            r = requests.post(url=url, json=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
                 jsonResponse = r.json()
-                if 'mode' in jsonResponse:
-                    self.logger.debug(jsonResponse['mode'])
-                    if str(jsonResponse['mode']) != str(mode):
+                if 'real_mode' in jsonResponse:
+                    self.logger.debug(jsonResponse['real_mode'])
+                    if str(jsonResponse['real_mode']) != str(mode):
                         self.logger.error(unicode("Did not change mode correctly!!"))
                         return False
                     return True
@@ -568,40 +572,51 @@ class Plugin(indigo.PluginBase):
                 return False
 
         except Exception, e:
-            self.logger.exception("Error setting Operation : " + repr(e))
-            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.logger.exception("Caught Exception setting Operation : " + repr(e))
+            self.logger.debug("Exception setting Operation" + unicode(e.message))
             self.connected = False
 
     def setOperationalMode(self, action):
-        self.logger.debug(u"setOperational Mode Called as Action.")
-        self.logger.debug(unicode(action))
 
-        mode = action.props.get('mode',"")
-        reserve = action.props.get("reserve","")
+        try:
+            self.logger.debug(u"setOperational Mode Called as Action.")
 
-        self.password = self.serialnumber
-        self.getauthToken()
+            self.changingoperationalmode = True
 
-        if self.pairingToken !="":
-            if self.changeOperation(mode, reserve):  ## success do the rest
-                self.setconfigCompleted()
-        # now cycle Powerwall
-                self.getauthToken()
-                self.setsitemasterRun()
+            self.logger.debug(unicode(action))
+
+            mode = action.props.get('mode',"")
+            reserve = action.props.get("reserve","")
+
+            self.password = self.serialnumber
+            self.getauthToken()
+
+            if self.pairingToken !="":
+                if self.changeOperation(mode, reserve):  ## success do the rest
+                    self.setconfigCompleted()
+            # now cycle Powerwall
+                    #self.getauthToken()
+                    self.setsitemasterRun()
+                else:
+                    self.logger.info("Set Mode/Change Operation failed.  Check error message.")
+                    self.logger.info("Restarting Sitemaster.")
+                    self.setsitemasterRun()
+
             else:
-                self.logger.error("change Operation failed.  Unsure why.  Check error message.")
-                self.logger.error("Restarting Sitemaster")
-                self.setsitemasterRun()
-                return
-        else:
-            self.logger.error("Failed to get Installer Pairing token.  Serial number should be installer password.")
+                self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
 
-        return
+            self.changingoperationalmode = False
+            return
+
+        except Exception, e:
+            self.logger.exception("Error change Operatonal Mode : " + repr(e))
+            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+            self.changingoperationalmode = False
 
     def setsitemasterRun(self):
 
         if self.debugextra:
-            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'setSiteMasterRun - 0.5.2 called. Number of Active Threads:' + unicode(
                 threading.activeCount()))
 
         if self.serverip == '':
@@ -620,6 +635,7 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(unicode(r.text))
                 self.logger.info("Sitemaster now Running again,following command success")
             else:
+                self.logger.error("Sitemaster Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
                 self.logger.error(unicode(r.text))
                 return ""
 
@@ -627,7 +643,7 @@ class Plugin(indigo.PluginBase):
         except Exception, e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
             self.logger.debug("Error setting Operation" + unicode(e.message))
-            self.connected = False
+
 
     def setconfigCompleted(self):
 
@@ -641,19 +657,16 @@ class Plugin(indigo.PluginBase):
         try:
             url = "https://" + str(self.serverip) + '/api/config/completed'
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
-
-            self.logger.debug(
-                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) )
 
             r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
-            if r.status_code == 202:
+            if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
                 self.logger.debug("Set Config Successfully run")
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error("Setconfig Error"+ unicode(r.text)+ " return code:"+unicode(r.status_code))
                 return ""
-
 
         except Exception, e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
@@ -672,6 +685,9 @@ class Plugin(indigo.PluginBase):
         #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
         # curl can't timeout - attempt to use threading
 
+        if self.changingoperationalmode:
+            self.logger.debug("Changing Operational Mode pausing updating Powerwall")
+            return
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
