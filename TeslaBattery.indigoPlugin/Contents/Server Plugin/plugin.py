@@ -499,7 +499,7 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/login/Basic'
-            payload = {'username': "installer", 'password': self.password, 'email': self.username, 'force_sm_off': False }
+            payload = {'username': "installer", 'password': str(self.password), 'email': str(self.username), 'force_sm_off': False }
            # payload = "{"username":"customer","email":"***REMOVED***","password":"***REMOVED***","force_sm_off":false}"
             r = requests.post(url=url, data=payload, timeout=10, verify=False)
             self.logger.debug("Calling "+unicode(url)+" with payload:"+unicode(payload))
@@ -548,7 +548,7 @@ class Plugin(indigo.PluginBase):
             url = "https://" + str(self.serverip) + '/api/operation'
             headers = {'Authorization':'Bearer '+self.pairingToken  }
 
-            payload = {'mode': mode, 'backup_reserve_percent': percentage}
+            payload = {'mode': str(mode), 'backup_reserve_percent': percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
             r = requests.post(url=self.url, data=payload, timeout=10, verify=False)
