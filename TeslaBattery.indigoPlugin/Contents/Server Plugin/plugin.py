@@ -551,7 +551,7 @@ class Plugin(indigo.PluginBase):
             payload = {'mode': mode, 'backup_reserve_percent': percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=self.url, data=payload, timeout=10, verify=False)
+            r = requests.post(url=url, data=payload, timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
@@ -583,9 +583,77 @@ class Plugin(indigo.PluginBase):
         if self.pairingToken !="":
             self.changeOperation(mode, reserve)
 
+        self.setconfigCompleted()
+
+        # now cycle Powerwall
+
+        self.getauthToken()
+        self.setsitemasterRun()
 
         return
 
+    def setsitemasterRun(self):
+
+        if self.debugextra:
+            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            url = "https://" + str(self.serverip) + '/api/sitemaster/run'
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+
+            self.logger.debug(
+                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+
+            r = requests.get(url=url, timeout=10, verify=False)
+
+            if r.status_code == 202:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+                self.logger.info("Sitemaster now Running again,following command success")
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+
+        except Exception, e:
+            self.logger.exception("Error setconfigComplete Operation : " + repr(e))
+            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.connected = False
+
+    def setconfigCompleted(self):
+
+        if self.debugextra:
+            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+
+        if self.serverip == '':
+            self.logger.debug(u'No IP address Entered..')
+            return
+        try:
+            url = "https://" + str(self.serverip) + '/api/config/completed'
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+
+            self.logger.debug(
+                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+
+            r = requests.get(url=url, timeout=10, verify=False)
+
+            if r.status_code == 202:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+
+        except Exception, e:
+            self.logger.exception("Error setconfigComplete Operation : " + repr(e))
+            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.connected = False
 
     def sendcommand(self, cmd):
 
