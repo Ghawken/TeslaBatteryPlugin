@@ -625,6 +625,7 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(unicode(r.text))
                 self.logger.info("Sitemaster now Running again,following command success")
             else:
+                self.logger.error("Sitemaster Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
                 self.logger.error(unicode(r.text))
                 return ""
 
@@ -654,7 +655,7 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(unicode(r.text))
                 self.logger.debug("Set Config Successfully run")
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error("Setconfig Error"+ unicode(r.text)+ " return code:"+unicode(r.status_code))
                 return ""
 
 
