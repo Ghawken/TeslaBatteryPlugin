@@ -547,7 +547,7 @@ class Plugin(indigo.PluginBase):
             return False
         try:
             url = "https://" + str(self.serverip) + '/api/operation'
-            headers = {'Authorization':'Bearer '+str(self.pairingToken)  }
+            headers = {'Authorization: Bearer '+str(self.pairingToken)  }
 
             payload = {'mode': str(mode), 'backup_reserve_percent': percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
@@ -609,7 +609,7 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/sitemaster/run'
-            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            headers = {'Authorization: Bearer ' + str(self.pairingToken)}
 
             self.logger.debug(
                 "Calling " + unicode(url) + " with headers:" + unicode(headers) )
@@ -641,7 +641,7 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/config/completed'
-            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            headers = {'Authorization: Bearer ' + str(self.pairingToken)}
 
             self.logger.debug(
                 "Calling " + unicode(url) + " with headers:" + unicode(headers) )
