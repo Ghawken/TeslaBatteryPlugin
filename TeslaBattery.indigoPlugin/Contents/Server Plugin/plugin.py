@@ -604,7 +604,7 @@ class Plugin(indigo.PluginBase):
     def setsitemasterRun(self):
 
         if self.debugextra:
-            self.logger.debug(u'setSiteMasterRun called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'setSiteMasterRun - 0.5.2 called. Number of Active Threads:' + unicode(
                 threading.activeCount()))
 
         if self.serverip == '':
