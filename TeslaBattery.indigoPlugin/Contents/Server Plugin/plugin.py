@@ -547,12 +547,12 @@ class Plugin(indigo.PluginBase):
             return False
         try:
             url = "https://" + str(self.serverip) + '/api/operation'
-            headers = {'Authorization: Bearer '+str(self.pairingToken)  }
+            headers = {'Authorization': 'Bearer '+str(self.pairingToken)  }
 
             payload = {'mode': str(mode), 'backup_reserve_percent': percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=url, data=payload, timeout=10, verify=False)
+            r = requests.post(url=url, data=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
@@ -609,12 +609,12 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/sitemaster/run'
-            headers = {'Authorization: Bearer ' + str(self.pairingToken)}
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
 
             self.logger.debug(
                 "Calling " + unicode(url) + " with headers:" + unicode(headers) )
 
-            r = requests.get(url=url, timeout=10, verify=False)
+            r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
             if r.status_code == 202:
                 self.logger.debug(unicode(r.text))
@@ -641,12 +641,12 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/config/completed'
-            headers = {'Authorization: Bearer ' + str(self.pairingToken)}
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
 
             self.logger.debug(
                 "Calling " + unicode(url) + " with headers:" + unicode(headers) )
 
-            r = requests.get(url=url, timeout=10, verify=False)
+            r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
             if r.status_code == 202:
                 self.logger.debug(unicode(r.text))
