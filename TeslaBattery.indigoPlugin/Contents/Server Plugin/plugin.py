@@ -540,10 +540,11 @@ class Plugin(indigo.PluginBase):
         ## also - using requests here which means incompatibities for some versions of iMAC
 
         percentage = float("%.1f" % float(reservepercentage))
+        self.logger.debug("Reserve Percentage is :"+unicode(percentage)+" and prior "+unicode(reservepercentage))
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
-            return
+            return False
         try:
             url = "https://" + str(self.serverip) + '/api/operation'
             headers = {'Authorization':'Bearer '+str(self.pairingToken)  }
@@ -560,11 +561,11 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(jsonResponse['mode'])
                     if str(jsonResponse['mode']) != str(mode):
                         self.logger.error(unicode("Did not change mode correctly!!"))
-                        return
+                        return False
+                    return True
             else:
                 self.logger.error(unicode(r.text))
-                return ""
-
+                return False
 
         except Exception, e:
             self.logger.exception("Error setting Operation : " + repr(e))
@@ -572,23 +573,26 @@ class Plugin(indigo.PluginBase):
             self.connected = False
 
     def setOperationalMode(self, action):
-        self.logger.debug(u"setFanSpeed Called as Action.")
+        self.logger.debug(u"setOperational Mode Called as Action.")
+        self.logger.debug(unicode(action))
+
         mode = action.props.get('mode',"")
         reserve = action.props.get("reserve","")
 
         self.password = self.serialnumber
         self.getauthToken()
 
-      #  self.pairingToken ="wontwork"
         if self.pairingToken !="":
-            self.changeOperation(mode, reserve)
-
-        self.setconfigCompleted()
-
+            if self.changeOperation(mode, reserve):  ## success do the rest
+                self.setconfigCompleted()
         # now cycle Powerwall
-
-        self.getauthToken()
-        self.setsitemasterRun()
+                self.getauthToken()
+                self.setsitemasterRun()
+            else:
+                self.logger.error("change Operation failed.")
+                return
+        else:
+            self.logger.error("Failed to get Installer Pairing token.  Serial number should be installer password.")
 
         return
 
