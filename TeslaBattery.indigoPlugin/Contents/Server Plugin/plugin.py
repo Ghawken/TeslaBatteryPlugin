@@ -97,7 +97,7 @@ class Plugin(indigo.PluginBase):
         self.password = self.pluginPrefs.get('password', '')
         self.serialnumber = self.pluginPrefs.get('serialnumber', '')
         self.version = '0.0.0'
-
+        self.pairingToken = ""
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
             indigo.devices.folder.create('Tesla Battery Gateway')
         self.folderId = indigo.devices.folders['Tesla Battery Gateway'].id
@@ -498,12 +498,13 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'No IP address Entered..')
             return
         try:
+            self.pairingToken = ""
             url = "https://" + str(self.serverip) + '/api/login/Basic'
             payload = {"username": "installer", "password": str(self.password), "email": str(self.username), "force_sm_off": False }
            # payload = "{"username":"customer","email":"ghawken@hotkey.net.au","password":"7yhrheu5","force_sm_off":false}"
-            r = requests.post(url=url, data=payload, timeout=10, verify=False)
-            self.logger.debug("Calling "+unicode(url)+" with payload:"+unicode(payload))
-            self.pairingToken = ""
+            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
+            r = requests.post(url=url, json=payload, timeout=20, verify=False)
+
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
                 jsonResponse = r.json()
@@ -521,7 +522,7 @@ class Plugin(indigo.PluginBase):
 
 
         except Exception, e:
-            self.logger.exception("Error getting Token : " + repr(e))
+            self.logger.debug("Error getting Token : " + repr(e))
             self.logger.debug( "Error connecting"+unicode(e.message))
             self.connected = False
 
@@ -576,32 +577,41 @@ class Plugin(indigo.PluginBase):
             self.connected = False
 
     def setOperationalMode(self, action):
-        self.logger.debug(u"setOperational Mode Called as Action.")
-        self.changingoperationalmode = True
-        self.logger.debug(unicode(action))
 
-        mode = action.props.get('mode',"")
-        reserve = action.props.get("reserve","")
+        try:
+            self.logger.debug(u"setOperational Mode Called as Action.")
 
-        self.password = self.serialnumber
-        self.getauthToken()
+            self.changingoperationalmode = True
 
-        if self.pairingToken !="":
-            if self.changeOperation(mode, reserve):  ## success do the rest
-                self.setconfigCompleted()
-        # now cycle Powerwall
-                #self.getauthToken()
-                self.setsitemasterRun()
+            self.logger.debug(unicode(action))
+
+            mode = action.props.get('mode',"")
+            reserve = action.props.get("reserve","")
+
+            self.password = self.serialnumber
+            self.getauthToken()
+
+            if self.pairingToken !="":
+                if self.changeOperation(mode, reserve):  ## success do the rest
+                    self.setconfigCompleted()
+            # now cycle Powerwall
+                    #self.getauthToken()
+                    self.setsitemasterRun()
+                else:
+                    self.logger.info("Set Mode/Change Operation failed.  Check error message.")
+                    self.logger.info("Restarting Sitemaster.")
+                    self.setsitemasterRun()
+
             else:
-                self.logger.info("change Operation failed.  Unsure why.  Check error message.")
-                self.logger.info("Restarting Sitemaster.")
-                self.setsitemasterRun()
+                self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
 
-        else:
-            self.logger.error("Failed to get Installer Pairing token.  Serial number should be installer password.")
+            self.changingoperationalmode = False
+            return
 
-        self.changingoperationalmode = False
-        return
+        except Exception, e:
+            self.logger.exception("Error change Operatonal Mode : " + repr(e))
+            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+            self.changingoperationalmode = False
 
     def setsitemasterRun(self):
 
@@ -651,13 +661,12 @@ class Plugin(indigo.PluginBase):
 
             r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
-            if r.status_code == 202:
+            if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
                 self.logger.debug("Set Config Successfully run")
             else:
                 self.logger.error("Setconfig Error"+ unicode(r.text)+ " return code:"+unicode(r.status_code))
                 return ""
-
 
         except Exception, e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
