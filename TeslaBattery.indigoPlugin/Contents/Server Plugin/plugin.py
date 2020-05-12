@@ -549,10 +549,10 @@ class Plugin(indigo.PluginBase):
             url = "https://" + str(self.serverip) + '/api/operation'
             headers = {'Authorization': 'Bearer '+str(self.pairingToken)  }
 
-            payload = {"mode": str(mode), "backup_reserve_percent": percentage}
+            payload = {"real_mode": str(mode), "backup_reserve_percent": percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
 
-            r = requests.post(url=url, data=payload, headers=headers,timeout=10, verify=False)
+            r = requests.post(url=url, json=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
@@ -568,8 +568,8 @@ class Plugin(indigo.PluginBase):
                 return False
 
         except Exception, e:
-            self.logger.exception("Error setting Operation : " + repr(e))
-            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.logger.exception("Caught Exception setting Operation : " + repr(e))
+            self.logger.debug("Exception setting Operation" + unicode(e.message))
             self.connected = False
 
     def setOperationalMode(self, action):
@@ -589,8 +589,8 @@ class Plugin(indigo.PluginBase):
                 self.getauthToken()
                 self.setsitemasterRun()
             else:
-                self.logger.error("change Operation failed.  Unsure why.  Check error message.")
-                self.logger.error("Restarting Sitemaster")
+                self.logger.info("change Operation failed.  Unsure why.  Check error message.")
+                self.logger.info("Restarting Sitemaster.")
                 self.setsitemasterRun()
                 return
         else:
