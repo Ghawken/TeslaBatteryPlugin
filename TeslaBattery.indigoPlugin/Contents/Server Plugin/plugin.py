@@ -546,7 +546,7 @@ class Plugin(indigo.PluginBase):
             return
         try:
             url = "https://" + str(self.serverip) + '/api/operation'
-            headers = {'Authorization':'Bearer '+self.pairingToken  }
+            headers = {'Authorization':'Bearer '+str(self.pairingToken)  }
 
             payload = {'mode': mode, 'backup_reserve_percent': percentage}
             self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
@@ -577,9 +577,11 @@ class Plugin(indigo.PluginBase):
         reserve = action.props.get("reserve","")
 
         self.password = self.serialnumber
-        self.pairingToken = self.getauthToken()
+        self.getauthToken()
+
       #  self.pairingToken ="wontwork"
-        self.changeOperation(mode, reserve)
+        if self.pairingToken !="":
+            self.changeOperation(mode, reserve)
 
 
         return
