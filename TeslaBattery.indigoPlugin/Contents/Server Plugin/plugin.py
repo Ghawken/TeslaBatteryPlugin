@@ -742,6 +742,7 @@ class Plugin(indigo.PluginBase):
             site_name=''
             timezone=''
             nominal_system_energy_kWh = ''
+            nominal_system_power_kW =''
             grid_code=''
             grid_voltage_setting=''
             grid_freq_setting =''
@@ -750,26 +751,35 @@ class Plugin(indigo.PluginBase):
             state=''
             region = ''
 
+    #        data ={u'nominal_system_power_kW': 10, u'site_name': u'Home Energy Gateway', u'max_site_meter_power_kW': 1000000000,
+    #               u'grid_code': {u'country': u'Australia', u'region': u'ASS4777.2', u'retailer': u'*', u'grid_voltage_setting': 230, u'grid_code': u'50Hz_230V_1_ASNZS4777.2:2015_AU',
+     #                             u'state': u'New South Wales', u'grid_phase_setting': u'Single', u'grid_freq_setting': 50, u'distributor': u'Ausgrid', u'utility': u'*'},
+     #              u'min_site_meter_power_kW': -1000000000, u'max_system_power_kW': 0, u'nominal_system_energy_kWh': 13.5, u'timezone': u'Australia/Sydney', u'max_system_energy_kWh': 0}
+
             if 'site_name' in data:
                 site_name = data['site_name']
             if 'timezone' in data:
                 timezone = data['timezone']
             if 'nominal_system_energy_kWh' in data:
                 nominal_system_energy_kWh = data['nominal_system_energy_kWh']
+            if 'nominal_system_power_kW' in data:
+                nominal_system_energy_kWh = data['nominal_system_power_kW']
             if 'grid_code' in data:
-                grid_code = data['grid_code']
-            if 'grid_voltage_setting' in data:
-                grid_voltage_setting = data['grid_voltage_setting']
-            if 'grid_freq_setting' in data:
-                grid_freq_setting = data['grid_freq_setting']
-            if 'grid_phase_setting' in data:
-                grid_phase_setting = data['grid_phase_setting']
-            if 'country' in data:
-                country = data['country']
-            if 'state' in data:
-                state = data['state']
-            if 'region' in data:
-                region = data['region']
+                grid_code_data = data['grid_code']
+                if 'grid_code' in grid_code_data:
+                    grid_code = grid_code_data['grid_code']
+                if 'grid_voltage_setting' in grid_code_data:
+                    grid_voltage_setting = grid_code_data['grid_voltage_setting']
+                if 'grid_freq_setting' in grid_code_data:
+                    grid_freq_setting = grid_code_data['grid_freq_setting']
+                if 'grid_phase_setting' in grid_code_data:
+                    grid_phase_setting = grid_code_data['grid_phase_setting']
+                if 'country' in grid_code_data:
+                    country = grid_code_data['country']
+                if 'state' in grid_code_data:
+                    state = grid_code_data['state']
+                if 'region' in data:
+                    region = grid_code_data['region']
 
             stateList = [
                 {'key': 'sitename', 'value': site_name},
