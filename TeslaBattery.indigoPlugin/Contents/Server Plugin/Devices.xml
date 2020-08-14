@@ -30,6 +30,11 @@
         <TriggerLabel>Nominal System Energy</TriggerLabel>
         <ControlPageLabel>Nominal System Energy</ControlPageLabel>
       </State>
+             <State id="nominalPower">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Nominal System Power</TriggerLabel>
+        <ControlPageLabel>Nominal System Power</ControlPageLabel>
+      </State>
      <State id="gridCode">
         <ValueType>String</ValueType>
         <TriggerLabel>Grid Code</TriggerLabel>
@@ -64,6 +69,21 @@
         <ValueType>String</ValueType>
         <TriggerLabel>Policy Region</TriggerLabel>
         <ControlPageLabel>Policy Region</ControlPageLabel>
+      </State>
+           <State id="utility">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Utility Provider</TriggerLabel>
+        <ControlPageLabel>Utility Provier</ControlPageLabel>
+      </State>
+                  <State id="distributor">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Utility Distributor</TriggerLabel>
+        <ControlPageLabel>Utility Distributor</ControlPageLabel>
+      </State>
+                  <State id="frequency">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Measured Frequency</TriggerLabel>
+        <ControlPageLabel>Measured Frequency</ControlPageLabel>
       </State>
    </States>
     <UiDisplayStateId>sitename</UiDisplayStateId>

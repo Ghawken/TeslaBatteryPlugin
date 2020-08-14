@@ -741,7 +741,7 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(u'data:'+unicode(data))
             site_name=''
             timezone=''
-            nominal_system_energy_kWh = ''
+            nominal_system_energy_kW = ''
             nominal_system_power_kW =''
             grid_code=''
             grid_voltage_setting=''
@@ -750,20 +750,26 @@ class Plugin(indigo.PluginBase):
             country=''
             state=''
             region = ''
-
+            frequency = ''
+            utility = ''
+            distributor = ''
     #        data ={u'nominal_system_power_kW': 10, u'site_name': u'Home Energy Gateway', u'max_site_meter_power_kW': 1000000000,
     #               u'grid_code': {u'country': u'Australia', u'region': u'ASS4777.2', u'retailer': u'*', u'grid_voltage_setting': 230, u'grid_code': u'50Hz_230V_1_ASNZS4777.2:2015_AU',
      #                             u'state': u'New South Wales', u'grid_phase_setting': u'Single', u'grid_freq_setting': 50, u'distributor': u'Ausgrid', u'utility': u'*'},
      #              u'min_site_meter_power_kW': -1000000000, u'max_system_power_kW': 0, u'nominal_system_energy_kWh': 13.5, u'timezone': u'Australia/Sydney', u'max_system_energy_kWh': 0}
 
+            # data = {u'nominal_system_power_kW': 10, u'site_name': u'Home Energy Gateway', u'measured_frequency': 60, u'max_site_meter_power_kW': 1000000000, u'grid_code': {u'country': u'United States', u'region': u'IEEE1547:2003', u'retailer': u'*', u'grid_voltage_setting': 240, u'grid_code': u'60Hz_240V_s_IEEE1547_2003', u'state': u'Florida', u'grid_phase_setting': u'Split', u'grid_freq_setting': 60, u'distributor': u'*', u'utility': u'Florida Power & Light, a part of NextEra Energy'}, u'min_site_meter_power_kW': -1000000000, u'max_system_power_kW': 0, u'nominal_system_energy_kWh': 13.5, u'timezone': u'America/New_York', u'max_system_energy_kWh': 0}
+
             if 'site_name' in data:
                 site_name = data['site_name']
             if 'timezone' in data:
                 timezone = data['timezone']
+            if 'measured_frequency' in data:
+                frequency = data['measured_frequency']
             if 'nominal_system_energy_kWh' in data:
-                nominal_system_energy_kWh = data['nominal_system_energy_kWh']
+                nominal_system_energy_kW = data['nominal_system_energy_kWh']
             if 'nominal_system_power_kW' in data:
-                nominal_system_energy_kWh = data['nominal_system_power_kW']
+                nominal_system_power_kW = data['nominal_system_power_kW']
             if 'grid_code' in data:
                 grid_code_data = data['grid_code']
                 if 'grid_code' in grid_code_data:
@@ -778,18 +784,26 @@ class Plugin(indigo.PluginBase):
                     country = grid_code_data['country']
                 if 'state' in grid_code_data:
                     state = grid_code_data['state']
-                if 'region' in data:
+                if 'region' in grid_code_data:
                     region = grid_code_data['region']
+                if 'utility' in grid_code_data:
+                    utility = grid_code_data['utility']
+                if 'distributor' in grid_code_data:
+                    distributor = grid_code_data['distributor']
 
             stateList = [
                 {'key': 'sitename', 'value': site_name},
                 {'key': 'timezone', 'value': timezone},
-                {'key': 'nominalEnergy', 'value': nominal_system_energy_kWh},
+                {'key': 'nominalEnergy', 'value': nominal_system_energy_kW},
                 {'key': 'gridCode', 'value': grid_code},
                 {'key': 'gridVoltage', 'value': grid_voltage_setting},
                 {'key': 'gridFreq', 'value': grid_freq_setting},
                 {'key': 'gridPhase', 'value': grid_phase_setting},
                 {'key': 'country', 'value': country},
+                {'key': 'nominalPower', 'value': nominal_system_power_kW},
+                {'key': 'frequency', 'value': frequency},
+                {'key': 'utility', 'value': utility},
+                {'key': 'distributor', 'value': distributor},
                 {'key': 'state', 'value': state},
                 {'key': 'region', 'value': region}
                 ]

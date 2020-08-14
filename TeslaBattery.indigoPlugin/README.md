@@ -55,8 +55,6 @@ eg.
 
 
 
-More to follow.
-[Not extensively tested in all conditions as  - as haven't had any negative numbers as solar generation today]
 
 
 
