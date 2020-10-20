@@ -823,21 +823,51 @@ class Plugin(indigo.PluginBase):
     def fillmetersinfo(self, data, device):
         self.logger.debug(u'fillmetersinfo called')
         try:
-            batterykW = float(data['battery']['instant_power'])/1000
-            #If is between 0 and -100 set to Zero
-            if -0.1 <= batterykW <=0.1:
-                batterykW = 0
+            # Test data no solar info
+            #data = {u'battery': {u'i_a_current': 0, u'energy_imported': 4177440, u'i_b_current': 0, u'instant_power': -10, u'i_c_current': 0, u'instant_reactive_power': 620, u'frequency': 59.985, u'timeout': 1500000000, u'instant_total_current': -0.30000000000000004, u'last_communication_time': u'2020-10-19T15:27:22.590244174-07:00', u'instant_apparent_power': 620.0806399170998, u'instant_average_voltage': 239.25, u'energy_exported': 3704000}, u'load': {u'i_a_current': 0, u'energy_imported': 46553687.08194445, u'i_b_current': 0, u'instant_power': 67.71369113155662, u'i_c_current': 0, u'instant_reactive_power': -157.45170616463744, u'frequency': 60, u'timeout': 1500000000, u'instant_total_current': 0.5649398530514325, u'last_communication_time': u'2020-10-19T15:27:22.586977848-07:00', u'instant_apparent_power': 171.39481830211548, u'instant_average_voltage': 119.86000061035156, u'energy_exported': 0}, u'site': {u'i_a_current': 0, u'energy_imported': 48820683.64353368, u'i_b_current': 0, u'instant_power': 86.91000175476074, u'i_c_current': 0, u'instant_reactive_power': -786.9100036621094, u'frequency': 60, u'timeout': 1500000000, u'instant_total_current': 0, u'last_communication_time': u'2020-10-19T15:27:22.586977848-07:00', u'instant_apparent_power': 791.6948290020048, u'instant_average_voltage': 119.86000061035156, u'energy_exported': 1793556.5615892268}}
 
+           # batterykW = float(data['battery']['instant_power'])/1000
+            #If is between 0 and -100 set to Zero
+            #if -0.1 <= batterykW <=0.1:
+             #   batterykW = 0
+
+            solar_instant_power = float(0)
+            grid_instant_power = float(0)
+            home_instant_power = float(0)
+            battery_instant_power = float(0)
+            solarkw = float(0)
+            gridkw = float(0)
+            homekw = float(0)
+            batterykw = float(0)
+
+            if 'solar' in data:
+                if 'instant_power' in data['solar']:
+                    solar_instant_power = data['solar']['instant_power']
+                    solarkw = "{0:0.1f}".format(float(data['solar']['instant_power'])/1000)
+            if 'site' in data:
+                if 'instant_power' in data['site']:
+                    grid_instant_power = data['site']['instant_power']
+                    gridkw = "{0:0.1f}".format(float(data['site']['instant_power']) / 1000)
+            if 'load' in data:
+                if 'instant_power' in data['load']:
+                    home_instant_power = data['load']['instant_power']
+                    homekw = "{0:0.1f}".format(float(data['load']['instant_power']) / 1000)
+            if 'battery' in data:
+                if 'instant_power' in data['battery']:
+                    battery_instant_power = data['battery']['instant_power']
+                    batterykw = "{0:0.1f}".format(float(data['battery']['instant_power']) / 1000)
+                    if -0.1 <= batterykw <= 0.1:
+                        batterykw = 0
 
             stateList = [
-                {'key': 'Solar', 'value': data['solar']['instant_power']},
-                {'key': 'Grid', 'value': data['site']['instant_power']},
-                {'key': 'Home', 'value': data['load']['instant_power']},
-                {'key': 'Battery', 'value': data['battery']['instant_power']},
-                {'key': 'SolarkW', 'value': "{0:0.1f}".format(float(data['solar']['instant_power'])/1000)},
-                {'key': 'GridkW', 'value': "{0:0.1f}".format(float(data['site']['instant_power'])/1000)},
-                {'key': 'HomekW', 'value': "{0:0.1f}".format(float(data['load']['instant_power'])/1000)},
-                {'key': 'BatterykW', 'value': "{0:0.1f}".format( batterykW )}
+                {'key': 'Solar', 'value': solar_instant_power},
+                {'key': 'Grid', 'value':grid_instant_power},
+                {'key': 'Home', 'value': home_instant_power},
+                {'key': 'Battery', 'value': battery_instant_power},
+                {'key': 'SolarkW', 'value': solarkw},
+                {'key': 'GridkW', 'value': gridkw},
+                {'key': 'HomekW', 'value': homekw},
+                {'key': 'BatterykW', 'value': batterykw}
             ]
 
             device.updateStatesOnServer(stateList)
@@ -853,14 +883,14 @@ class Plugin(indigo.PluginBase):
                 # Avoids flipping on and off when battery charging pulling etc.
                 # Could add user adjustable level?
 
-                if float(data['site']['instant_power']) > 250 :
+                if float(grid_instant_power) > 250 :
                     # Pulling something from Grid
                     device.updateStateOnServer('gridUsage', value=True)
-                elif float(data['site']['instant_power']) < -100 :
+                elif float(grid_instant_power) < -100 :
                     device.updateStateOnServer('gridUsage', value=False)
                     self.logger.debug(u'Grid Usage False')
 
-                if float(data['battery']['instant_power']) < -100 :
+                if float(battery_instant_power) < -100 :
                 # Pulling something from Grid
                     if batteryCharging ==False:
                         self.triggerCheck(device, 'batteryCharging')
@@ -868,21 +898,21 @@ class Plugin(indigo.PluginBase):
                 else:
                     device.updateStateOnServer('batteryCharging', value=False)
 
-                if float(data['solar']['instant_power']) > 95:
+                if float(solar_instant_power) > 95:
                     # Solar Generating more than 150 watts
                     device.updateStateOnServer('solarGenerating', value=True)
                 else:
                     device.updateStateOnServer('solarGenerating', value=False)
 
-                if float(data['site']['instant_power']) < -100:
+                if float(grid_instant_power) < -100:
                     # Solar Generating more than 150 watts
                     if sendingtoGrid == False:
                         self.triggerCheck(device, 'solarExporting')
                     device.updateStateOnServer('sendingtoGrid', value=True)
-                elif float(data['site']['instant_power']) > 100:
+                elif float(grid_instant_power) > 100:
                     device.updateStateOnServer('sendingtoGrid', value=False)
 
-                if float(data['battery']['instant_power']) > 150:
+                if float(battery_instant_power) > 150:
                     # Solar Generating more than 150 watts
                     if batteryDischarging==False:
                         self.triggerCheck(device, 'batteryDischarging')
