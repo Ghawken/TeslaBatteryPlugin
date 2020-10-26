@@ -21,7 +21,19 @@
 
         </ConfigUI>
     </Action>
+<Action id="setBatteryReserve">
+        <Name>Change Battery Reserve Percentage</Name>
+        <CallbackMethod>setBatteryReserve</CallbackMethod>
+        <ConfigUI>
+            <Field id="reserve"
+				   type="textfield"
+				   tooltip=""
+				   default=""                   >
+				<Label>Battery Reserve Percentage:</Label>
+			</Field>
 
+        </ConfigUI>
+    </Action>
   
 </Actions>
 
