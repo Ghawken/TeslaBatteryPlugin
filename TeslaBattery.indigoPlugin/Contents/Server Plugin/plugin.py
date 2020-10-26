@@ -480,19 +480,50 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'TimeOut for Curl Subprocess. Called command:'+unicode(cmd))
         f.kill()
 
-    def getauthToken(self):
+    def getauthTokenOnline(self):
 
         if self.debugextra:
             self.logger.debug(u'Thread Send Login Basic called. Number of Active Threads:' + unicode(
                     threading.activeCount()))
 
-        ## 1.20.0 Changes to https and SSL for Tesla Software
-        # Not backward compatible with others... annoyingly
-        # Use CURL to avoid dreaded SSL Error because of library issues
-        #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
-        # curl can't timeout - attempt to use threading
+        if self.username == "" or self.password =="":
+            self.logger.info("Please set password and username within Plugin Config and try again")
+            return
 
-        ## also - using requests here which means incompatibities for some versions of iMAC
+        try:
+            self.pairingToken = ""
+            url = "https://owner-api.teslamotors.com/oauth/token"
+            payload = {"grant_type":"password", "email": str(self.username), "password": str(self.password), "email": str(self.username), "client_secret": "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3", "client_id": "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384" }
+            headers = {'content-type': 'application/json'}
+            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
+            r = requests.post(url=url, json=payload, headers=headers, timeout=20, verify=False)
+
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+                if 'access_token' in jsonResponse:
+                    self.logger.debug(jsonResponse['access_token'])
+                    self.pairingToken = jsonResponse['access_token']
+            else:
+                self.logger.error(unicode(r.text))
+                return ""
+
+            ## pairingToken should exists
+            if self.pairingToken == "":
+                self.logger.info("No Token received?  Ending.")
+                return ""
+
+
+        except Exception, e:
+            self.logger.debug("Error getting Token : " + repr(e))
+            self.logger.debug( "Error connecting"+unicode(e.message))
+            self.connected = False
+
+    def getauthToken(self):
+
+        if self.debugextra:
+            self.logger.debug(u'Thread Send Login Basic called. Number of Active Threads:' + unicode(
+                    threading.activeCount()))
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
@@ -576,6 +607,69 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Exception setting Operation" + unicode(e.message))
             self.connected = False
 
+    def getsiteInfoOnline(self):
+        try:
+            url = "https://owner-api.teslamotors.com/api/1/energy_sites/"+str(self.energysiteid)+"/site_info"
+
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+            r = requests.get(url=url, headers=headers, timeout=10, verify=False)
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+            else:
+                self.logger.error(unicode(r.text))
+                return False
+            ##  Now update battery reserve percentage
+        except Exception, e:
+            self.logger.exception("Caught Exception setting Operation : " + repr(e))
+            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.connected = False
+
+    def changeOperationOnline(self, mode, reservepercentage):
+
+        if self.debugextra:
+            self.logger.debug(u'Change OperationOnline called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+
+        percentage = float("%.1f" % float(reservepercentage))
+
+        # percentage = int(reservepercentage)
+
+        self.logger.debug("Reserve Percentage is :" + unicode(percentage) + " and prior " + unicode(reservepercentage))
+
+        try:
+            url = "https://owner-api.teslamotors.com/api/1/energy_sites/"+str(self.energysiteid)+"/operation"
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            payload = {"default_real_mode": str(mode)}
+            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) + " and payload " + unicode(payload))
+            r = requests.post(url=url, json=payload, headers=headers, timeout=10, verify=False)
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+            else:
+                self.logger.error(unicode(r.text))
+                return False
+            ##  Now update battery reserve percentage
+            url = "https://owner-api.teslamotors.com/api/1/energy_sites/" + str(self.energysiteid) + "/backup"
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            payload = {"backup_reserve_percent": percentage}
+            self.logger.debug(
+                "Calling " + unicode(url) + " with headers:" + unicode(headers) + " and payload " + unicode(payload))
+            r = requests.post(url=url, json=payload, headers=headers, timeout=10, verify=False)
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                return True
+            else:
+                self.logger.error(unicode(r.text))
+                return False
+        ##  Now update battery reserve percentage
+
+
+
+        except Exception, e:
+            self.logger.exception("Caught Exception setting Operation : " + repr(e))
+            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.connected = False
+
     def setOperationalMode(self, action):
 
         try:
@@ -612,6 +706,115 @@ class Plugin(indigo.PluginBase):
             self.logger.exception("Error change Operatonal Mode : " + repr(e))
             self.logger.debug("Error change Operation Mode :" + unicode(e.message))
             self.changingoperationalmode = False
+
+    def setOperationalModeOnline(self, action):
+
+        try:
+            self.logger.debug(u"setOperational Mode Online, given 1.50.1. changes Called as Action.")
+
+            self.changingoperationalmode = True
+            self.logger.debug(unicode(action))
+
+            mode = action.props.get('mode',"")
+            reserve = action.props.get("reserve","")
+
+            #self.password = self.serialnumber
+            self.getauthTokenOnline()
+
+            #
+
+
+            if self.pairingToken !="":
+                ## need to get site info to know what to change..
+                if self.getsiteInfo(self.pairingToken) != "":
+
+                    self.getsiteInfoOnline()
+                    if self.changeOperationOnline(mode, reserve):  ## success do the rest
+                        self.logger.info(u'Successfully changed to mode:'+unicode(mode)+u" with backup reserve:"+unicode(reserve))
+                        #self.setconfigCompleted()
+                        # now cycle Powerwall
+                        #self.getauthToken()
+                        #self.setsitemasterRun()
+                    else:
+                        self.logger.info("Set Mode/Change Operation failed.  Check error message.")
+                        #self.logger.info("Restarting Sitemaster.")
+                        #self.setsitemasterRun()
+                else:
+                    self.logger.info(u'Energy Site Info ID not found/returned..')
+
+                # revoke token
+                self.revokeToken()
+                self.pairingToken=""
+
+            else:
+                self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
+
+            self.changingoperationalmode = False
+            return
+
+        except Exception, e:
+            self.logger.exception("Error change Operatonal Mode : " + repr(e))
+            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+            self.changingoperationalmode = False
+
+    def revokeToken(self):
+
+        if self.debugextra:
+            self.logger.debug(u'revokeToken - Called:' )
+
+        try:
+            url = "https://owner-api.teslamotors.com/oauth/revoke"
+            payload = {'token': str(self.pairingToken)}
+
+            headers = {'content-type': 'application/json'}
+
+
+            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
+            r = requests.post(url=url, json=payload, headers=headers, timeout=20, verify=False)
+
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+            else:
+                self.logger.debug("revoke Token Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
+                self.logger.debug(unicode(r.text))
+                return ""
+
+        except Exception, e:
+            self.logger.exception("Error getsiteInfo Operation : " + repr(e))
+            self.logger.debug("Error getsiteInfo Operation" + unicode(e.message))
+
+    def getsiteInfo(self, localtoken):
+
+        if self.debugextra:
+            self.logger.debug(u'getsiteInfo - Called:' )
+
+        try:
+            url = "https://owner-api.teslamotors.com/api/1/products"
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+
+            self.logger.debug("Calling " + unicode(url) + " with headers:" + unicode(headers) )
+
+            r = requests.get(url=url, timeout=15, headers=headers, verify=False)
+
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                jsonResponse = r.json()
+                if 'response' in jsonResponse:
+                    for results in jsonResponse['response']:
+                        if 'energy_site_id' in results:
+                            self.energysiteid = results['energy_site_id']
+                            self.logger.debug("Energy Site ID:"+unicode(self.energysiteid))
+                            return self.energysiteid
+            else:
+                self.logger.error("getSiteInfo Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
+                self.logger.error(unicode(r.text))
+                self.energysiteid =""
+                return ""
+
+        except Exception, e:
+            self.logger.exception("Error getsiteInfo Operation : " + repr(e))
+            self.logger.debug("Error getsiteInfo Operation" + unicode(e.message))
 
     def setsitemasterRun(self):
 
