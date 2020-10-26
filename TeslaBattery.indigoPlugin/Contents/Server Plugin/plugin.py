@@ -756,8 +756,14 @@ class Plugin(indigo.PluginBase):
                         self.logger.info(u'Battery Reserved changed to with backup reserve:'+unicode(reserve) )
                     else:
                         self.logger.info("Set Mode/Change Battery Reserve Operation failed.  Check debug log /and or error message.")
-                        #self.logger.info("Restarting Sitemaster.")
-                        #self.setsitemasterRun()
+                        self.logger.info("Trying again, one more time..")
+                        self.sleep(3)
+                        self.getauthTokenOnline()
+                        if self.getsiteInfo(self.pairingToken) != "":
+                            if self.changeBatteryReserveOnline(reserve):  ## success do the rest
+                                self.logger.info(u'Battery Reserved changed to with backup reserve:' + unicode(reserve))
+                            else:
+                                self.logger.info(  "Set Mode/Change Battery Reserve Operation failed Again, giving up.  Check debug log /and or error message.")
                 else:
                     self.logger.info(u'Energy Site Info ID not found/returned..')
 
@@ -775,6 +781,7 @@ class Plugin(indigo.PluginBase):
             self.logger.exception("Error change Operatonal Mode : " + repr(e))
             self.logger.debug("Error change Operation Mode :" + unicode(e.message))
             self.changingoperationalmode = False
+
     def setOperationalModeOnline(self, action):
 
         try:
@@ -801,7 +808,16 @@ class Plugin(indigo.PluginBase):
                         #self.getauthToken()
                         #self.setsitemasterRun()
                     else:
-                        self.logger.info("Set Mode/Change Operation failed.  Check error message.")
+                        self.logger.info("Set Mode/Change Operation failed.  Check error message, and/or debug log.")
+                        self.logger.info("Trying again, one more time...")
+                        self.sleep(3)
+                        self.getauthTokenOnline()
+                        if self.getsiteInfo(self.pairingToken) != "":
+                            if self.changeOperationOnline(mode, reserve):  ## success do the rest
+                                self.logger.info(u'Successfully changed to mode:' + unicode(
+                                    mode) + u" with backup reserve:" + unicode(reserve))
+                            else:
+                                self.logger.info(u"Set Mode/Change Operation failed Again, giving up.  Please check debug log/error message received.")
                         #self.logger.info("Restarting Sitemaster.")
                         #self.setsitemasterRun()
                 else:
