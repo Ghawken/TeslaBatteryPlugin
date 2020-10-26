@@ -625,6 +625,36 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Exception setting Operation" + unicode(e.message))
             self.connected = False
 
+    def changeBatteryReserveOnline(self, reservepercentage):
+        if self.debugextra:
+            self.logger.debug(u'Change Battery Reserve Alone called. Number of Active Threads:' + unicode(
+                threading.activeCount()))
+        try:
+            percentage = float("%.1f" % float(reservepercentage))
+
+            # percentage = int(reservepercentage)
+
+            self.logger.debug("Reserve Percentage is :" + unicode(percentage) + " and prior " + unicode(reservepercentage))
+
+            url = "https://owner-api.teslamotors.com/api/1/energy_sites/" + str(self.energysiteid) + "/backup"
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            payload = {"backup_reserve_percent": percentage}
+            self.logger.debug(
+                "Calling " + unicode(url) + " with headers:" + unicode(headers) + " and payload " + unicode(payload))
+            r = requests.post(url=url, json=payload, headers=headers, timeout=10, verify=False)
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                return True
+            else:
+                self.logger.error(unicode(r.text))
+                return False
+            ##  Now update battery reserve percentage
+
+        except Exception, e:
+            self.logger.exception("Caught Exception setting Operation : " + repr(e))
+            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.connected = False
+
     def changeOperationOnline(self, mode, reservepercentage):
 
         if self.debugextra:
@@ -662,8 +692,6 @@ class Plugin(indigo.PluginBase):
                 self.logger.error(unicode(r.text))
                 return False
         ##  Now update battery reserve percentage
-
-
 
         except Exception, e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
@@ -707,6 +735,46 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Error change Operation Mode :" + unicode(e.message))
             self.changingoperationalmode = False
 
+    def setBatteryReserve(self, action):
+
+        try:
+            self.logger.debug(u"setBatteryReserve Mode Online, given 1.50.1. changes Called as Action.")
+
+            self.changingoperationalmode = True
+            self.logger.debug(unicode(action))
+
+            reserve = action.props.get("reserve","")
+
+            #self.password = self.serialnumber
+            self.getauthTokenOnline()
+            #
+            if self.pairingToken !="":
+                ## need to get site info to know what to change..
+                if self.getsiteInfo(self.pairingToken) != "":
+                    #self.getsiteInfoOnline()
+                    if self.changeBatteryReserveOnline(reserve):  ## success do the rest
+                        self.logger.info(u'Battery Reserved changed to with backup reserve:'+unicode(reserve) )
+                    else:
+                        self.logger.info("Set Mode/Change Battery Reserve Operation failed.  Check debug log /and or error message.")
+                        #self.logger.info("Restarting Sitemaster.")
+                        #self.setsitemasterRun()
+                else:
+                    self.logger.info(u'Energy Site Info ID not found/returned..')
+
+                # revoke token
+                self.revokeToken()
+                self.pairingToken=""
+
+            else:
+                self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
+
+            self.changingoperationalmode = False
+            return
+
+        except Exception, e:
+            self.logger.exception("Error change Operatonal Mode : " + repr(e))
+            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+            self.changingoperationalmode = False
     def setOperationalModeOnline(self, action):
 
         try:
@@ -720,10 +788,7 @@ class Plugin(indigo.PluginBase):
 
             #self.password = self.serialnumber
             self.getauthTokenOnline()
-
             #
-
-
             if self.pairingToken !="":
                 ## need to get site info to know what to change..
                 if self.getsiteInfo(self.pairingToken) != "":
