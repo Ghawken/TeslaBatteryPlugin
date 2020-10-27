@@ -113,7 +113,31 @@
         <TriggerLabel>Percent Charged for Control Page Use</TriggerLabel>
         <ControlPageLabel>Percent charged for Control Page Use</ControlPageLabel>
       </State>
-
+      <State id="batteryMode">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Battery Real Mode</TriggerLabel>
+        <ControlPageLabel>Battery Real Mode</ControlPageLabel>
+      </State>
+              <State id="batteryReservePercentage">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Battery Reserve Percentage Backup</TriggerLabel>
+        <ControlPageLabel>Battery Reserve Percentage Backup</ControlPageLabel>
+      </State>
+             <State id="stormMode">
+        <ValueType>Boolean</ValueType>
+        <TriggerLabel>Storm Mode enabled</TriggerLabel>
+        <ControlPageLabel>Store Mode enabled</ControlPageLabel>
+      </State>
+             <State id="version">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Battery TEG version</TriggerLabel>
+        <ControlPageLabel>Battery TEG version</ControlPageLabel>
+      </State>
+                    <State id="batteryCount">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Battery Number</TriggerLabel>
+        <ControlPageLabel>Battery Number</ControlPageLabel>
+      </State>
    </States>
     <UiDisplayStateId>chargeCP</UiDisplayStateId>
   </Device>

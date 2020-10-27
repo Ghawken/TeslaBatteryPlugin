@@ -32,14 +32,15 @@
         <Label>Username/Email</Label>
       </Field>
       <Field id="example23" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Gateway Email Username - optional if controlling powerwall</Label>
+        <Label> Tesla Account Email Username - optional if controlling powerwall and additional Battery States
+        </Label>
       </Field>
-          <Field
-        id="password" type="textfield">
+          <Field id="password" type="textfield">
         <Label>Password</Label>
       </Field>
       <Field id="example33" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Gateway Password - optional if controlling powerwall</Label>
+        <Label> Tesla Account Password - optional if controlling powerwall and additional Battery States
+        </Label>
       </Field>
               <Field
         id="serialnumber" type="textfield">
