@@ -43,10 +43,10 @@
         </Label>
       </Field>
               <Field
-        id="serialnumber" type="textfield">
+        id="serialnumber" type="textfield" hidden="true">
         <Label>Gateway Serial Number</Label>
       </Field>
-      <Field id="example133" type="label" fontSize="small" fontColor="black" alignText="right" >
+      <Field id="example133" type="label" fontSize="small" fontColor="black" alignText="right" hidden="true">
         <Label> Tesla Gateway Serial Number - optional if controlling powerwall</Label>
       </Field>
          <Field id="sep2a" type="separator"/>
