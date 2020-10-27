@@ -95,7 +95,7 @@ class Plugin(indigo.PluginBase):
         self.serverip = self.pluginPrefs.get('ipAddress', '')
         self.username = self.pluginPrefs.get('username', '')
         self.password = self.pluginPrefs.get('password', '')
-        self.serialnumber = self.pluginPrefs.get('serialnumber', '')
+        #self.serialnumber = self.pluginPrefs.get('serialnumber', '')
         self.version = '0.0.0'
         self.pairingToken = ""
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
@@ -126,7 +126,7 @@ class Plugin(indigo.PluginBase):
             self.serverip = valuesDict.get('ipAddress', '')
             self.username = valuesDict.get('username', '')
             self.password = valuesDict.get('password', '')
-            self.serialnumber = valuesDict.get('serialnumber', '')
+            #self.serialnumber = valuesDict.get('serialnumber', '')
             self.prefsUpdated = True
             self.updateFrequency = float(valuesDict.get('updateFrequency', "24")) * 60.0 * 60.0
 
@@ -180,7 +180,9 @@ class Plugin(indigo.PluginBase):
                 updateGridFaults = t.time() + 55
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
-                while self.prefsUpdated == False:
+                updateOnlineSite = t.time()+30
+
+                while self.prefsUpdated ==  False:
 
                     if t.time() > updateMeters:
                         for dev in indigo.devices.itervalues('self.teslaMeters'):
@@ -208,6 +210,9 @@ class Plugin(indigo.PluginBase):
                     if t.time() > updateBatt:
                         for dev in indigo.devices.itervalues('self.teslaBattery'):
                             self.updateBattery(dev)
+                            if t.time() > updateOnlineSite:
+                                self.parseonlineSiteInfo(dev)
+                                updateOnlineSite = updateOnlineSite + 600
                         updateBatt = t.time() + 60
 
                     self.sleep(1)
@@ -493,7 +498,10 @@ class Plugin(indigo.PluginBase):
         try:
             self.pairingToken = ""
             url = "https://owner-api.teslamotors.com/oauth/token"
-            payload = {"grant_type":"password", "email": str(self.username), "password": str(self.password), "email": str(self.username), "client_secret": "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3", "client_id": "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384" }
+            payload = {"grant_type": "password", "email": str(self.username), "password": str(self.password),
+                       "email": str(self.username),
+                       "client_secret": "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3",
+                       "client_id": "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"}
             headers = {'content-type': 'application/json'}
             self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
             r = requests.post(url=url, json=payload, headers=headers, timeout=20, verify=False)
@@ -505,8 +513,9 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(jsonResponse['access_token'])
                     self.pairingToken = jsonResponse['access_token']
             else:
-                self.logger.error(unicode(r.text))
-                return ""
+                self.logger.debug(unicode(r.text))
+
+                return r.text
 
             ## pairingToken should exists
             if self.pairingToken == "":
@@ -616,14 +625,15 @@ class Plugin(indigo.PluginBase):
             r = requests.get(url=url, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
                 self.logger.debug(unicode(r.text))
+                return r.json()
             else:
                 self.logger.error(unicode(r.text))
-                return False
+                return ""
             ##  Now update battery reserve percentage
         except Exception, e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
             self.logger.debug("Exception setting Operation" + unicode(e.message))
-            self.connected = False
+            return ""
 
     def changeBatteryReserveOnline(self, reservepercentage):
         if self.debugextra:
@@ -782,6 +792,58 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Error change Operation Mode :" + unicode(e.message))
             self.changingoperationalmode = False
 
+    def parseonlineSiteInfo(self, device):
+        self.logger.debug("parse Online Site Info for usefulness...")
+
+        try:
+            self.getauthTokenOnline()
+            #
+            if self.pairingToken != "":
+                ## need to get site info to know what to change..
+                if self.getsiteInfo(self.pairingToken) != "":
+                    data = self.getsiteInfoOnline()
+                    if data == "":
+                        self.logger.debug("No online site data obtained")
+                        return
+
+                    backupreservepercentage = int(0)
+                    stormmode = False
+                    batterymode = ""
+                    version = ""
+                    batterycount = 0
+
+                    if 'response' in data:
+                        if 'backup_reserve_percent' in data['response']:
+                            backupreservepercentage = data['response']['backup_reserve_percent']
+                        if 'default_real_mode' in data['response']:
+                            batterymode = data['response']['default_real_mode']
+                        if 'user_settings' in data['response']:
+                            if 'storm_mode_enabled' in data['response']['user_settings']:
+                                stormmode = data['response']['user_settings']['storm_mode_enabled']
+                        if 'version' in data['response']:
+                            version = data['response']['version']
+                        if 'battery_count' in data['response']:
+                            batterycount = data['response']['battery_count']
+
+
+                    stateList = [
+                            {'key': 'batteryMode', 'value': batterymode},
+                            {'key': 'batteryReservePercentage', 'value': backupreservepercentage},
+                            {'key': 'stormMode', 'value': stormmode},
+                             {'key': 'batteryCount', 'value': batterycount},
+                            {'key': 'version', 'value': version},
+                                  ]
+                    device.updateStatesOnServer(stateList)
+                    device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
+                    update_time = t.strftime('%c')
+                    device.updateStateOnServer('deviceLastUpdated', value=str(update_time))
+
+        except Exception, e:
+            self.logger.exception("Error Getting Online Site Info : " + repr(e))
+            self.logger.debug("Error Getting Online Site Info" + unicode(e.message))
+            self.changingoperationalmode = False
+
+
     def setOperationalModeOnline(self, action):
 
         try:
@@ -794,7 +856,7 @@ class Plugin(indigo.PluginBase):
             reserve = action.props.get("reserve","")
 
             #self.password = self.serialnumber
-            self.getauthTokenOnline()
+            datareturned = self.getauthTokenOnline()
             #
             if self.pairingToken !="":
                 ## need to get site info to know what to change..
@@ -828,8 +890,10 @@ class Plugin(indigo.PluginBase):
                 self.pairingToken=""
 
             else:
-                self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
-
+                self.logger.info("Failed to get Installer Pairing token.  .")
+                if 'authorization_required' in datareturned:
+                    self.logger.info("Check Username and Password.  Authenicated Fails for those Given")
+                    self.logger.info("Should be your online Tesla Account Username/Password as uses online API for control")
             self.changingoperationalmode = False
             return
 
