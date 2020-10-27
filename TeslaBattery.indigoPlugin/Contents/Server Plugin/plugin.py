@@ -492,7 +492,7 @@ class Plugin(indigo.PluginBase):
                     threading.activeCount()))
 
         if self.username == "" or self.password =="":
-            self.logger.info("Please set password and username within Plugin Config and try again")
+            #self.logger.info("Please set password and username within Plugin Config and try again")
             return
 
         try:
