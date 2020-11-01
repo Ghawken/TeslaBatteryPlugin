@@ -10,7 +10,7 @@
   <Field id="sep7" type="separator"/>
 
     <Field id="label3" type="label" fontColor="black">
-        <Label>Tesla Gateway IP Address:</Label>
+        <Label>Tesla Battery Gateway IP Address:</Label>
       </Field>
             <Field id="label4" type="label" fontSize="small" fontColor="black">
         <Label></Label>
@@ -22,32 +22,51 @@
 			</Field>
       <Field
         id="ipAddress" type="textfield">
-        <Label>IP Address</Label>
+        <Label>IP Address (required)</Label>
       </Field>
-      <Field id="example3" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Gateway IP - will need to enable static IP address in DHCP Server</Label>
+      <Field id="example3" type="label" fontSize="small" fontColor="darkgray"  >
+        <Label>
+            Local Powerwall Battery Gateway IP - will need to enable static IP address in
+            DHCP Server</Label>
       </Field>
+      <Field id="sep2ba" type="separator" fontColor="black"/>
+<Field id="spacea2" type="label" fontSize="small" fontColor="darkgray">
+    <Label>
+        Your Tesla Account email and Passport are the details to enter below.
+        This enables Control of the powerwall via the Action Group.  This will
+        enable Indigo to change battery backup reserve and alter mode of battery
+        from backup, to discharging..
+        They are also used for a couple of Battery related States.
+        If left blank, these states will be left blank and control won't be
+        possible.
+    </Label>
+  </Field>
           <Field
         id="username" type="textfield">
-        <Label>Username/Email</Label>
+        <Label>Tesla Username/Email</Label>
       </Field>
-      <Field id="example23" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Account Email Username - optional if controlling powerwall and additional Battery States
+      <Field id="example23" type="label" fontSize="small" fontColor="darkgray"  >
+        <Label>
+            Tesla Account Email Username - optional if controlling powerwall and additional
+            Battery States
         </Label>
       </Field>
           <Field id="password" type="textfield">
         <Label>Password</Label>
       </Field>
-      <Field id="example33" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Account Password - optional if controlling powerwall and additional Battery States
+      <Field id="example33" type="label" fontSize="small" fontColor="darkgray"  >
+        <Label>
+            Tesla Account Password - optional if controlling powerwall and additional
+            Battery States
         </Label>
       </Field>
               <Field
         id="serialnumber" type="textfield" hidden="true">
         <Label>Gateway Serial Number</Label>
       </Field>
-      <Field id="example133" type="label" fontSize="small" fontColor="black" alignText="right" hidden="true">
-        <Label> Tesla Gateway Serial Number - optional if controlling powerwall</Label>
+      <Field id="example133" type="label" fontSize="small" fontColor="darkgray"  hidden="true">
+        <Label>
+            Tesla Gateway Serial Number - optional if controlling powerwall</Label>
       </Field>
          <Field id="sep2a" type="separator"/>
 
@@ -93,8 +112,10 @@
 
   <Field id="sep4" type="separator"/>
 
-  <Field id="space11" type="label" fontSize="small">
-    <Label>Turn on debugging only when needed. Be careful when posting the output to the forums or other public places as it could expose sensitive information.</Label>
+  <Field id="space11" type="label" fontSize="small" fontColor="darkgray" >
+    <Label>
+        Turn on debugging only when needed. Be careful when posting the output to the
+        forums or other public places as it could expose sensitive information.</Label>
   </Field>
 
     <Field id="debugextra" type="checkbox" tooltip="Enabling will result in Browser showing maps.">

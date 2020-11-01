@@ -665,7 +665,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Exception setting Operation" + unicode(e.message))
             self.connected = False
 
-    def changeOperationOnline(self, mode, reservepercentage):
+    def changeOperationOnline(self, mode, reservepercentage, setreserve):
 
         if self.debugextra:
             self.logger.debug(u'Change OperationOnline called. Number of Active Threads:' + unicode(
@@ -689,6 +689,11 @@ class Plugin(indigo.PluginBase):
                 self.logger.error(unicode(r.text))
                 return False
             ##  Now update battery reserve percentage
+
+            if setreserve is False:
+                self.logger.debug("Skipping Setting Reserve as not selected to do so")
+                return True
+
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/" + str(self.energysiteid) + "/backup"
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
             payload = {"backup_reserve_percent": percentage}
@@ -853,6 +858,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(unicode(action))
 
             mode = action.props.get('mode',"")
+            setreserve = action.props.get('setbatteryreserve', False)
             reserve = action.props.get("reserve","")
 
             #self.password = self.serialnumber
@@ -863,25 +869,25 @@ class Plugin(indigo.PluginBase):
                 if self.getsiteInfo(self.pairingToken) != "":
 
                     self.getsiteInfoOnline()
-                    if self.changeOperationOnline(mode, reserve):  ## success do the rest
-                        self.logger.info(u'Successfully changed to mode:'+unicode(mode)+u" with backup reserve:"+unicode(reserve))
-                        #self.setconfigCompleted()
-                        # now cycle Powerwall
-                        #self.getauthToken()
-                        #self.setsitemasterRun()
+                    if self.changeOperationOnline(mode, reserve, setreserve):  ## success do the rest
+                        if setreserve:
+                            self.logger.info(u'Successfully changed to mode:'+unicode(mode)+u" with backup reserve:"+unicode(reserve))
+                        else:
+                            self.logger.info(  u'Successfully changed to mode:' + unicode(mode) + u" with backup reserve not changed")
+
                     else:
                         self.logger.info("Set Mode/Change Operation failed.  Check error message, and/or debug log.")
                         self.logger.info("Trying again, one more time...")
                         self.sleep(3)
                         self.getauthTokenOnline()
                         if self.getsiteInfo(self.pairingToken) != "":
-                            if self.changeOperationOnline(mode, reserve):  ## success do the rest
-                                self.logger.info(u'Successfully changed to mode:' + unicode(
-                                    mode) + u" with backup reserve:" + unicode(reserve))
+                            if self.changeOperationOnline(mode, reserve, setreserve):  ## success do the rest
+                                if setreserve:
+                                    self.logger.info(u'Successfully changed to mode:' + unicode(mode) + u" with backup reserve:" + unicode(reserve))
+                                else:
+                                    self.logger.info(u'Successfully changed to mode:' + unicode(mode) + u" with backup reserve not changed")
                             else:
                                 self.logger.info(u"Set Mode/Change Operation failed Again, giving up.  Please check debug log/error message received.")
-                        #self.logger.info("Restarting Sitemaster.")
-                        #self.setsitemasterRun()
                 else:
                     self.logger.info(u'Energy Site Info ID not found/returned..')
 
