@@ -4,7 +4,19 @@
         <Name>Set Operational Mode</Name>
         <CallbackMethod>setOperationalModeOnline</CallbackMethod>
         <ConfigUI>
-           	<Field id="mode" type="menu" defaultValue="autonomous">
+           	<Field id="labelnotused1" type="label" fontSize="small" fontColor="darkgray">
+    <Label>
+		For this action to Complete, you need to have updated the PluginConfig
+		section with your Tesla email/password.  Without it this will fail.
+
+		If updated, this allows an apparent instantaneously change in the mode of
+		the battery, from backup to discharging.
+
+		Allowing you to schedule very closely your battery usage from within Indigo.
+    </Label>
+  </Field>
+
+			<Field id="mode" type="menu" defaultValue="autonomous">
 				<Label>Operational Mode:</Label>
 				<List>
 					<Option value="self_consumption">Self Consumption</Option>
@@ -12,10 +24,18 @@
 					<Option value="backup">Backup</Option>
 				</List>
             </Field>
-            <Field id="reserve"
+   <Field id="setbatteryreserve" type="checkbox" tooltip="Check to change the battery reserve at same time">
+        <Label/>
+        <Description>Alter Battery Backup Reserve (as well)?</Description>
+    </Field>
+
+			<Field id="reserve"
 				   type="textfield"
 				   tooltip=""
-				   default=""                   >
+				   default=""
+				   alwaysUseInDialogHeightCalc="true"
+			visibleBindingId="setbatteryreserve" visibleBindingValue="true"
+			>
 				<Label>Battery Reserve Percentage:</Label>
 			</Field>
 

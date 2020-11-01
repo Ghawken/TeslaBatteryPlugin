@@ -1,9 +1,5 @@
 <?xml version="1.0"?>
 <MenuItems>
-      <MenuItem id="pluginstoreUpdate">
-        <Name>Open PluginStore for Download</Name>
-        <CallbackMethod>pluginstoreUpdate</CallbackMethod>
-    </MenuItem>
   <MenuItem id="toggleDebug">
     <Name>Toggle Debugging</Name>
     <CallbackMethod>toggleDebugEnabled</CallbackMethod>
