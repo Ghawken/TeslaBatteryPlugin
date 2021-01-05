@@ -671,12 +671,6 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'Change OperationOnline called. Number of Active Threads:' + unicode(
                 threading.activeCount()))
 
-        percentage = float("%.1f" % float(reservepercentage))
-
-        # percentage = int(reservepercentage)
-
-        self.logger.debug("Reserve Percentage is :" + unicode(percentage) + " and prior " + unicode(reservepercentage))
-
         try:
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/"+str(self.energysiteid)+"/operation"
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
@@ -693,6 +687,11 @@ class Plugin(indigo.PluginBase):
             if setreserve is False:
                 self.logger.debug("Skipping Setting Reserve as not selected to do so")
                 return True
+            try:
+                percentage = float("%.1f" % float(reservepercentage))
+            except:
+                self.logger.error("Error in Setting Percentage - please correct input")
+                return
 
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/" + str(self.energysiteid) + "/backup"
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
