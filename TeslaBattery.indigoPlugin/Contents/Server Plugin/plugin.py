@@ -25,8 +25,8 @@ import subprocess
 import threading
 from threading import Timer
 import requests
-import urllib3
-urllib3.disable_warnings() # For 'verify=False' SSL warning
+#import urllib3
+#urllib3.disable_warnings() # For 'verify=False' SSL warning
 import urllib
 import base64
 import hashlib
