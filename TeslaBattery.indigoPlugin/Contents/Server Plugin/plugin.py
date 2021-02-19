@@ -10,6 +10,7 @@ Prelim Version
 """
 import logging
 import datetime
+import time
 import time as t
 import urllib2
 import os
@@ -95,6 +96,9 @@ class Plugin(indigo.PluginBase):
         self.serverip = self.pluginPrefs.get('ipAddress', '')
         self.username = self.pluginPrefs.get('username', '')
         self.password = self.pluginPrefs.get('password', '')
+
+        self.batUsername = self.pluginPrefs.get('Batusername', '')
+        self.batPassword = self.pluginPrefs.get('Batpassword', '')
         #self.serialnumber = self.pluginPrefs.get('serialnumber', '')
         self.version = '0.0.0'
         self.pairingToken = ""
@@ -102,7 +106,9 @@ class Plugin(indigo.PluginBase):
             indigo.devices.folder.create('Tesla Battery Gateway')
         self.folderId = indigo.devices.folders['Tesla Battery Gateway'].id
 
-
+        self.sessionReq = requests.Session()
+        self.sessionData = ""
+        self.sessiontimeStamp = 0 ## unix date stamp of 2 hours post token...
         self.pluginIsInitializing = False
 
 
@@ -126,6 +132,9 @@ class Plugin(indigo.PluginBase):
             self.serverip = valuesDict.get('ipAddress', '')
             self.username = valuesDict.get('username', '')
             self.password = valuesDict.get('password', '')
+
+            self.batUsername = valuesDict.get('Batusername', '')
+            self.batPassword = valuesDict.get('Batpassword', '')
             #self.serialnumber = valuesDict.get('serialnumber', '')
             self.prefsUpdated = True
             self.updateFrequency = float(valuesDict.get('updateFrequency', "24")) * 60.0 * 60.0
@@ -250,7 +259,7 @@ class Plugin(indigo.PluginBase):
     def updateSitemaster(self, dev):
         if self.debugextra:
             self.logger.debug(u'update Tesla Site Master Called')
-        sitemaster = self.sendcommandslowtimeout('sitemaster')
+        sitemaster = self.sendcommand('sitemaster')
         if sitemaster is not None and sitemaster !='Offline':
             self.fillsitemaster(sitemaster, dev)
         return
@@ -486,7 +495,6 @@ class Plugin(indigo.PluginBase):
         f.kill()
 
     def getauthTokenOnline(self):
-
         if self.debugextra:
             self.logger.debug(u'Thread Send Login Basic called. Number of Active Threads:' + unicode(
                     threading.activeCount()))
@@ -712,42 +720,42 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Exception setting Operation" + unicode(e.message))
             self.connected = False
 
-    def setOperationalMode(self, action):
-
-        try:
-            self.logger.debug(u"setOperational Mode Called as Action.")
-
-            self.changingoperationalmode = True
-
-            self.logger.debug(unicode(action))
-
-            mode = action.props.get('mode',"")
-            reserve = action.props.get("reserve","")
-
-            self.password = self.serialnumber
-            self.getauthToken()
-
-            if self.pairingToken !="":
-                if self.changeOperation(mode, reserve):  ## success do the rest
-                    self.setconfigCompleted()
-            # now cycle Powerwall
-                    #self.getauthToken()
-                    self.setsitemasterRun()
-                else:
-                    self.logger.info("Set Mode/Change Operation failed.  Check error message.")
-                    self.logger.info("Restarting Sitemaster.")
-                    self.setsitemasterRun()
-
-            else:
-                self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
-
-            self.changingoperationalmode = False
-            return
-
-        except Exception, e:
-            self.logger.exception("Error change Operatonal Mode : " + repr(e))
-            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
-            self.changingoperationalmode = False
+    # def setOperationalMode(self, action):
+    #
+    #     try:
+    #         self.logger.debug(u"setOperational Mode Called as Action.")
+    #
+    #         self.changingoperationalmode = True
+    #
+    #         self.logger.debug(unicode(action))
+    #
+    #         mode = action.props.get('mode',"")
+    #         reserve = action.props.get("reserve","")
+    #
+    #         self.password = self.serialnumber
+    #         self.getauthToken()
+    #
+    #         if self.pairingToken !="":
+    #             if self.changeOperation(mode, reserve):  ## success do the rest
+    #                 self.setconfigCompleted()
+    #         # now cycle Powerwall
+    #                 #self.getauthToken()
+    #                 self.setsitemasterRun()
+    #             else:
+    #                 self.logger.info("Set Mode/Change Operation failed.  Check error message.")
+    #                 self.logger.info("Restarting Sitemaster.")
+    #                 self.setsitemasterRun()
+    #
+    #         else:
+    #             self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
+    #
+    #         self.changingoperationalmode = False
+    #         return
+    #
+    #     except Exception, e:
+    #         self.logger.exception("Error change Operatonal Mode : " + repr(e))
+    #         self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+    #         self.changingoperationalmode = False
 
     def setBatteryReserve(self, action):
 
@@ -1042,48 +1050,68 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Changing Operational Mode pausing updating Powerwall")
             return
 
+        if self.username == "" or self.password =="":
+            self.logger.info("Please set password and username within Plugin Config and try again. This is now required.")
+            return
+        if self.batUsername == "" or self.batPassword =="":
+            self.logger.info("Please set Battery password and username within Plugin Config and try again. This is now required.")
+            return
+
+
+        headers = {            'Content-Type': 'application/json',        }
+       # data = ' {"username":"customer", "password":'+str(self.batPassword)+', "email": "customer@customer.domain",
+        #           "force_sm_off": false} '
+        data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"customer@customer.domain","force_sm_off":false}'
+
+       # self.logger.error(unicode(data))
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
             return
         try:
             self.url = "https://" + str(self.serverip) + '/api/'+ str(cmd)
+
+            if self.sessionData == "" or time.time() >=self.sessiontimeStamp:
+                self.logger.debug("Setting up New Token Session Data")
+                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=10)
+                if self.sessionData.status_code == 200:
+                    self.logger.debug(unicode(self.sessionData.text))
+                    jsonsessionData = json.loads(self.sessionData.text)
+                    if 'loginTime' in jsonsessionData:
+                        self.logger.debug("LoginTime: "+unicode(jsonsessionData['loginTime']))
+                        timetouse = jsonsessionData['loginTime'].split(".")[0]
+                        #self.logger.debug(unicode(timetouse))
+                        self.sessiontimeStamp = int(time.mktime(time.strptime(timetouse,"%Y-%m-%dT%H:%M:%S")))+ (60*60)  #1 hour update
+                        self.logger.debug("Date TimeStamp 1 hour in future = "+unicode(self.sessiontimeStamp)       )
+                else:
+                    self.logger.error(unicode(self.sessionData.text))
+                    self.sessionData = ""
+                    return "Offline"
+
             if self.debugextra:
-                self.logger.debug(u'sendcommand called')
-            f = subprocess.Popen(["curl", '-sk', self.url], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            ## below is 3 second timeout...
-            #timerkill = Timer(3, f.kill)
-            timerkill = threading.Timer(3, self.killcurl, [cmd,f])
+                self.logger.debug(u'sendcommand called: for url:'+unicode(self.url)+" with data:"+unicode(data))
 
-            try:
-                timerkill.start()
-            # '-H', str(headers), "-k",
-                out, err = f.communicate()
-                self.logger.debug(u'HTTPS CURL result:' + unicode(err))
-                self.logger.debug(u'ReturnCode:{0}'.format(unicode(f.returncode)))
-                #self.sleep(0.2)
-            finally:
-                timerkill.cancel()
 
-            #r = requests.get(self.url, timeout=2)
-            if (int(f.returncode) == 0) and out is not None and out !='':
-                data = json.loads(out)
-                if self.debugextra:
-                    self.logger.debug(u'SUCCESS Text :' + unicode(data))
-                    self.logger.debug(u'Json results:' + unicode(data))
+            r = self.sessionReq.get(self.url, verify=False, timeout=10)
+            #self.logger.info(r.text)
+            #return json.loads(r.text)
+            #return 'Offline'
+
+            if r.status_code == 200:
+                self.logger.debug(unicode(r.text))
+                return json.loads(r.text)
             else:
-                self.logger.debug(u'ReturnCode:'+unicode(f.returncode) )
-                self.logger.debug(u'Text :'+unicode(f.stderr))  #r.text
-                self.logger.debug(u'Error Running command.  ?Powerwall offline')
-                return 'Offline'
+                self.logger.error(unicode(r.text))
+                return "Offline"
 
             if self.debugextra:
                 self.logger.debug(u'sendcommand r.json result:'+ unicode(json.loads(out)))
 
-            return json.loads(out)
+            return json.loads(r.text)
 
         except IOError:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
             self.sleep(5)
+            self.sessionData =""
             return 'Offline'
 
     # Fill Device with Info
