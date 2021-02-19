@@ -29,6 +29,26 @@
             Local Powerwall Battery Gateway IP - will need to enable static IP address in
             DHCP Server</Label>
       </Field>
+
+          <Field
+        id="Batusername" type="textfield">
+        <Label>Battery Customer Username/Email</Label>
+      </Field>
+      <Field id="example232" type="label" fontSize="small" fontColor="darkgray"  >
+        <Label>
+            Powerwall Username as Email
+        </Label>
+      </Field>
+          <Field id="Batpassword" type="textfield">
+        <Label>Battery Password</Label>
+      </Field>
+      <Field id="example332" type="label" fontSize="small" fontColor="darkgray"  >
+        <Label>
+            Local Powerwall 'Customer' Password
+        </Label>
+      </Field>
+
+
       <Field id="sep2ba" type="separator" fontColor="black"/>
 <Field id="spacea2" type="label" fontSize="small" fontColor="darkgray">
     <Label>
