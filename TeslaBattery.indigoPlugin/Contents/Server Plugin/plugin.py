@@ -17,13 +17,22 @@ import os
 import shutil
 import sys
 import platform
+import urlparse
+
 import requests
 import json
 import subprocess
 import threading
 from threading import Timer
 import requests
-
+import urllib3
+urllib3.disable_warnings() # For 'verify=False' SSL warning
+import urllib
+import base64
+import hashlib
+import re
+import random
+import string
 
 try:
     import indigo
@@ -109,7 +118,21 @@ class Plugin(indigo.PluginBase):
         self.sessionReq = requests.Session()
         self.sessionData = ""
         self.sessiontimeStamp = 0 ## unix date stamp of 2 hours post token...
+
+        self.verifier_bytes = os.urandom(32)
+        self.challenge = base64.urlsafe_b64encode(self.verifier_bytes).rstrip(b'=')
+        self.challenge_bytes = hashlib.sha256(self.challenge).digest()
+        self.challengeSum = base64.urlsafe_b64encode(self.challenge_bytes).rstrip(b'=')
+
+        self.auth_header = {'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + self.pairingToken}
+        self.TESLA_CLIENT_ID = '81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384'
+        self.TESLA_CLIENT_SECRET = 'c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3'
+
         self.pluginIsInitializing = False
+
+
+
 
 
     def __del__(self):
@@ -493,6 +516,172 @@ class Plugin(indigo.PluginBase):
         if self.debugextra:
             self.logger.debug(u'TimeOut for Curl Subprocess. Called command:'+unicode(cmd))
         f.kill()
+###
+###  New Online Changes..
+###
+    def rand_str(self, chars=43):
+        letters = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_"
+        return "".join(random.choice(letters) for i in range(chars))
+
+    def authUrl(self):
+        print "getting url"
+        getVars = {'client_id': 'ownerapi',
+                   'code_challenge': self.challengeSum,
+                   'code_challenge_method' : "S256",
+                   'redirect_uri' : "https://auth.tesla.com/void/callback",
+                   'response_type' : "code",
+                   'scope' : "openid email offline_access",
+                   'state' : "tesla_exporter"
+        }
+        url = 'https://auth.tesla.com/oauth2/v3/authorize'
+
+        # Python 2:
+        result = url + "?" + urllib.urlencode(getVars)
+        self.logger.debug(result)
+        return result
+
+    def authenticate_new(self, params=None):
+        ## from here with thanks!
+        ## https://github.com/fkhera/powerwallCloud/blob/master/powerwallBackup.py
+
+        try:
+            session = requests.Session()
+            self.logger.debug( "authenticate method")
+            auth_url = self.authUrl();
+            headers = {
+                'User-Agent': 'PowerwallDarwinManager'
+            }
+            resp = session.get(auth_url, headers=headers)
+
+            csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
+            transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
+
+            data = {
+                "_csrf": csrf,
+                "_phase": "authenticate",
+                "_process": "1",
+                "transaction_id": transaction_id,
+                "cancel": "",
+                "identity": self.username,
+                "credential": self.password,
+            }
+            self.logger.debug( "Opening session with login")
+            # Important to say redirects false cause this will result in 302 and need to see next data
+            resp = session.post(auth_url, headers=headers, data=data, allow_redirects=False)
+            # Determine if user has MFA enabled
+            # In that case there is no redirect to `https://auth.tesla.com/void/callback` and app shows new form with Passcode / Backup Passcode field
+            is_mfa = True if resp.status_code == 200 and "/mfa/verify" in resp.text else False
+
+            self.logger.debug( "isMFA: " + str(is_mfa) )
+
+            if is_mfa:
+                getVars = {'transaction_id': transaction_id}
+                url = 'https://auth.tesla.com/oauth2/v3/authorize/mfa/factors'
+                mfaUrl = url + "?" + urllib.urlencode(getVars)
+                resp = session.get(mfaUrl, headers=headers)
+                # {
+                #     "data": [
+                #         {
+                #             "dispatchRequired": false,
+                #             "id": "41d6c32c-b14a-4cef-9834-36f819d1fb4b",
+                #             "name": "Device #1",
+                #             "factorType": "token:software",
+                #             "factorProvider": "TESLA",
+                #             "securityLevel": 1,
+                #             "activatedAt": "2020-12-07T14:07:50.000Z",
+                #             "updatedAt": "2020-12-07T06:07:49.000Z",
+                #         }
+                #     ]
+                # }
+                self.logger.debug(resp.text)
+                factor_id = resp.json()["data"][0]["id"]
+
+                # Can use Passcode
+                data = {"transaction_id": transaction_id, "factor_id": factor_id, "passcode": "YOUR_PASSCODE"}
+                resp = session.post("https://auth.tesla.com/oauth2/v3/authorize/mfa/verify", headers=headers, json=data)
+                # ^^ Content-Type - application/json
+                self.logger.debug(resp.text)
+                # {
+                #     "data": {
+                #         "id": "63375dc0-3a11-11eb-8b23-75a3281a8aa8",
+                #         "challengeId": "c7febba0-3a10-11eb-a6d9-2179cb5bc651",
+                #         "factorId": "41d6c32c-b14a-4cef-9834-36f819d1fb4b",
+                #         "passCode": "985203",
+                #         "approved": true,
+                #         "flagged": false,
+                #         "valid": true,
+                #         "createdAt": "2020-12-09T03:26:31.000Z",
+                #         "updatedAt": "2020-12-09T03:26:31.000Z",
+                #     }
+                # }
+                if "error" in resp.text or not resp.json()["data"]["approved"] or not resp.json()["data"]["valid"]:
+                    raise ValueError("Invalid passcode.")
+
+                # Can use Backup Passcode
+                data = {"transaction_id": transaction_id, "backup_code": "ONE_OF_BACKUP_CODES"}
+                resp = session.post(
+                    "https://auth.tesla.com/oauth2/v3/authorize/mfa/backupcodes/attempt", headers=headers, json=data
+                )
+                # ^^ Content-Type - application/json
+                self.logger.debug(resp.text)
+                # {
+                #     "data": {
+                #         "valid": true,
+                #         "reason": null,
+                #         "message": null,
+                #         "enrolled": true,
+                #         "generatedAt": "2020-12-09T06:14:23.170Z",
+                #         "codesRemaining": 9,
+                #         "attemptsRemaining": 10,
+                #         "locked": false,
+                #     }
+                # }
+                if "error" in resp.text or not resp.json()["data"]["valid"]:
+                    raise ValueError("Invalid backup passcode.")
+
+                data = {"transaction_id": transaction_id}
+                resp = session.post(
+                    "https://auth.tesla.com/oauth2/v3/authorize",
+                    headers=headers,
+                    params=params,
+                    data=data,
+                    allow_redirects=False,
+                )
+
+            # If not MFA This code plays instead , which is parising location
+            self.logger.debug( "Coming to non MFA flow:" )
+            code_url = resp.headers["location"]
+            parsed = urlparse.urlparse(code_url)
+            code = urlparse.parse_qs(parsed.query)['code']
+
+            payload = {
+                "grant_type": "authorization_code",
+                "client_id": "ownerapi",
+                "code_verifier": self.rand_str(108),
+                "code": code,
+                "redirect_uri": "https://auth.tesla.com/void/callback",
+            }
+
+            resp = session.post("https://auth.tesla.com/oauth2/v3/token", headers=headers, json=payload)
+            access_token = resp.json()["access_token"]
+
+            headers["authorization"] = "bearer " + access_token
+            payload = {
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "client_id": self.TESLA_CLIENT_ID,
+            }
+            resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload)
+            owner_access_token = resp.json()["access_token"]
+
+            self.pairingToken = owner_access_token
+            self.auth_header = {'Authorization': 'Bearer ' + self.pairingToken}
+
+        except:
+            # printing stack trace
+            self.logger.exception("Exception in new Authenicate")
+
+
+
 
     def getauthTokenOnline(self):
         if self.debugextra:
@@ -502,6 +691,10 @@ class Plugin(indigo.PluginBase):
         if self.username == "" or self.password =="":
             #self.logger.info("Please set password and username within Plugin Config and try again")
             return
+        ####
+        self.authenticate_new()
+        return
+
 
         try:
             self.pairingToken = ""
@@ -545,6 +738,9 @@ class Plugin(indigo.PluginBase):
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
             return
+
+
+
         try:
             self.pairingToken = ""
             url = "https://" + str(self.serverip) + '/api/login/Basic'
