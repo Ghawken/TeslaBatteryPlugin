@@ -28,7 +28,7 @@ from threading import Timer
 import requests
 #import urllib3
 #urllib3.disable_warnings() # For 'verify=False' SSL warning
-#import urllib
+import urllib
 import base64
 import hashlib
 import re
@@ -748,15 +748,18 @@ class Plugin(indigo.PluginBase):
                 ("redirect_uri", "https://auth.tesla.com/void/callback"),
                 ("response_type", "code"),
                 ("scope", "openid email offline_access"),
-                ("state", state),
+                ("state", "tesla_explorer"),
             )
 
             self.logger.debug(unicode(headers))
             self.logger.debug(unicode(params))
 
-            session = requests.Session()
-            resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
+            ## add to url
+            urltouse = "https://auth.tesla.com/oauth2/v3/authorize" + "?" + urllib.urlencode(params)
 
+            session = requests.Session()
+            #resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
+            resp = session.get(urltouse, headers=headers,timeout=15)
             if not (resp.ok and "<title>" in resp.text):
                 self.logger.debug("Returning None")
                 self.logger.debug(unicode(resp.text))
@@ -1464,9 +1467,6 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Changing Operational Mode pausing updating Powerwall")
             return
 
-        if self.username == "" or self.password =="":
-            self.logger.info("Please set password and username within Plugin Config and try again. This is now required.")
-            return
         if self.batUsername == "" or self.batPassword =="":
             self.logger.info("Please set Battery password and username within Plugin Config and try again. This is now required.")
             return
