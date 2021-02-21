@@ -831,8 +831,8 @@ class Plugin(indigo.PluginBase):
             tokens = resp.json()
 
             access_token = tokens["access_token"]
-            self.pairintTokenexpires_in = int(tokens["expires_in"])
-            self.pairintTokencreated_at = int(tokens["created_at"])
+            self.pairingTokenexpires_in = int(tokens["expires_in"])
+            self.pairingTokencreated_at = int(tokens["created_at"])
             self.pairingTokenrefresh_token = tokens["refresh_token"]
             return access_token
         except:
