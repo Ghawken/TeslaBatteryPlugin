@@ -731,7 +731,7 @@ class Plugin(indigo.PluginBase):
             # string of any length
 
             headers = {
-                "User-Agent": UA,
+            #    "User-Agent": UA
           #      "x-tesla-user-agent": X_TESLA_USER_AGENT,
            #     "X-Requested-With": "com.teslamotors.tesla",
             }
@@ -755,11 +755,11 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(unicode(params))
 
             ## add to url
-            urltouse = "https://auth.tesla.com/oauth2/v3/authorize" + "?" + urllib.urlencode(params)
+            #urltouse = "https://auth.tesla.com/oauth2/v3/authorize" + "?" + urllib.urlencode(params)
 
             session = requests.Session()
-            #resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
-            resp = session.get(urltouse, headers=headers,timeout=15)
+            resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
+            #resp = session.get(urltouse, headers=headers,timeout=15)
             if not (resp.ok and "<title>" in resp.text):
                 self.logger.debug("Returning None")
                 self.logger.debug(unicode(resp.text))
@@ -787,13 +787,15 @@ class Plugin(indigo.PluginBase):
             }
 
             resp = session.post(
-                "https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, data=data, timeout=15,
+                "https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, data=data, timeout=25,
                 allow_redirects=False
             )
             # This will respond with a 302 HTTP response code, which will attempt to
             # redirect to the redirect_uri with additional query parameters added.
             # Returns 200 if login/PW is invalid
             if not (resp.ok and (resp.status_code == 302 or "<title>" in resp.text)):
+                self.logger.error("Error Here")
+                self.logger.error(unicode(resp.text))
                 return None
 
             # Step 3: Exchange authorization code for bearer token
@@ -804,7 +806,7 @@ class Plugin(indigo.PluginBase):
 
             # This is a standard OAuth 2.0 Authorization Code exchange. This endpoint uses
             # JSON for the request and response bodies
-            headers = {"user-agent": UA, "x-tesla-user-agent": X_TESLA_USER_AGENT}
+            #headers = {"User-Agent": UA } #, "x-tesla-user-agent": X_TESLA_USER_AGENT}
             payload = {
                 "grant_type": "authorization_code",
                 "client_id": "ownerapi",
