@@ -834,6 +834,11 @@ class Plugin(indigo.PluginBase):
             self.pairingTokenexpires_in = int(tokens["expires_in"])
             self.pairingTokencreated_at = int(tokens["created_at"])
             self.pairingTokenrefresh_token = tokens["refresh_token"]
+
+            self.logger.debug("New Pairing Token Returned:"+unicode(self.pairingToken))
+            self.logger.debug("New token Expires_in:"+unicode(self.pairingTokenexpires_in))
+            self.logger.debug("New token created_at:"+unicode(self.pairingTokencreated_at))
+
             return access_token
         except:
             self.logger.exception("Caught Login Exception GetTokenfromLogin")
@@ -842,7 +847,7 @@ class Plugin(indigo.PluginBase):
     # Either return a valid TeslaToken of None if login did fail
     def GetTokenFromRefreshToken(self,refreshtoken):
         try:
-            self.logger.debug("GetTOeknFromRefreshToken called.")
+            self.logger.debug("Get new Token From RefreshToken called.")
             # tesla client id and secret which are everywhere on internet
             CLIENT_ID = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"
             # Avoid setting a User-Agent header that looks like a browser (such as Chrome or
@@ -852,6 +857,10 @@ class Plugin(indigo.PluginBase):
             X_TESLA_USER_AGENT = "TeslaApp/3.10.9-433/adff2e065/android/10"
 
             headers = {"user-agent": UA, "x-tesla-user-agent": X_TESLA_USER_AGENT}
+
+            ## remove all headers; probably need to change back... once tesla fixes WAF
+            headers = {}
+
             payload = {
                 "grant_type": "refresh_token",
                 "client_id": "ownerapi",
@@ -865,7 +874,10 @@ class Plugin(indigo.PluginBase):
             try:
                 # will not be found if refresh token was invalid
                 access_token = resp_json["access_token"]
+                self.logger.debug("** New bearer token received:"+unicode(access_token))
             except KeyError:
+                self.logger.debug("Error with Refreshing Token")
+                self.logger.debug(unicode(resp.text))
                 return None
 
             # Step 4: Exchange bearer token for access token
@@ -874,7 +886,7 @@ class Plugin(indigo.PluginBase):
                 "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
                 "client_id": CLIENT_ID,
             }
-            resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload)
+            resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload, timeout=20)
 
             # save our tokens
             tokens = resp.json()
@@ -882,14 +894,26 @@ class Plugin(indigo.PluginBase):
             self.pairingTokenexpires_in = int(tokens["expires_in"])
             self.pairingTokencreated_at = int(tokens["created_at"])
             self.pairingTokenrefresh_token = tokens["refresh_token"]
+            self.logger.debug("** Refresh Token renew successful")
+            self.logger.debug("New Pairing Token Returned:"+unicode(self.pairingToken))
+            self.logger.debug("New token Expires_in:"+unicode(self.pairingTokenexpires_in))
+            self.logger.debug("New token created_at:"+unicode(self.pairingTokencreated_at))
+
             return self.pairingToken
         except:
             self.logger.exception("Error in Refresh Token")
             return ""
 
+    def menurefreshToken(self):
+
+        self.logger.debug("Refresh Online Token Called.")
+        if self.pairingTokenrefresh_token !="":
+            self.logger.debug("RefreshToken:"+unicode(self.pairingTokenrefresh_token))
+            self.pairingToken = self.GetTokenFromRefreshToken(self.pairingTokenrefresh_token)
+
     def getauthTokenOnline(self):
         if self.debugextra:
-            self.logger.debug(u'Thread Send Login Basic called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'getauthTokenOnline. Number of Active Threads:' + unicode(
                     threading.activeCount()))
 
         if self.username == "" or self.password =="":
@@ -913,7 +937,7 @@ class Plugin(indigo.PluginBase):
                         self.logger.error("Refresh Token Failed.")
                     return self.pairingToken
             else:
-                self.logger.error("ExpiresIn and CreateAt Token 0?  How ")
+                self.logger.error("ExpiresIn and CreateAt Token 0 - Error at beginning.")
                 self.logger.error(u"PairingToken:"+unicode(self.pairingToken)+"    "+ unicode(self.pairintTokencreated_at))
         #self.authenticate_new()
         return
