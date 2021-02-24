@@ -986,8 +986,6 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'No IP address Entered..')
             return
 
-
-
         try:
             self.pairingToken = ""
             url = "https://" + str(self.serverip) + '/api/login/Basic'
@@ -1010,7 +1008,6 @@ class Plugin(indigo.PluginBase):
             if self.pairingToken == "":
                 self.logger.info("No Token received?  Ending.")
                 return ""
-
 
         except Exception, e:
             self.logger.debug("Error getting Token : " + repr(e))
@@ -1497,9 +1494,8 @@ class Plugin(indigo.PluginBase):
             self.logger.info("Please set Battery password and username within Plugin Config and try again. This is now required.")
             return
 
-
-        headers = {            'Content-Type': 'application/json',        }
-       # data = ' {"username":"customer", "password":'+str(self.batPassword)+', "email": "customer@customer.domain",
+        headers = { 'Content-Type': 'application/json', }
+        # data = ' {"username":"customer", "password":'+str(self.batPassword)+', "email": "customer@customer.domain",
         #           "force_sm_off": false} '
         data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"customer@customer.domain","force_sm_off":false}'
 
@@ -1509,10 +1505,10 @@ class Plugin(indigo.PluginBase):
             return
         try:
             self.url = "https://" + str(self.serverip) + '/api/'+ str(cmd)
-
             if self.sessionData == "" or time.time() >=self.sessiontimeStamp:
                 self.logger.debug("Setting up New Token Session Data")
-                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=10)
+                self.sessionReq = requests.Session()   ## renew session
+                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=20)
                 if self.sessionData.status_code == 200:
                     self.logger.debug(unicode(self.sessionData.text))
                     jsonsessionData = json.loads(self.sessionData.text)
@@ -1529,8 +1525,6 @@ class Plugin(indigo.PluginBase):
 
             if self.debugextra:
                 self.logger.debug(u'sendcommand called: for url:'+unicode(self.url)+" with data:"+unicode(data))
-
-
             r = self.sessionReq.get(self.url, verify=False, timeout=10)
             #self.logger.info(r.text)
             #return json.loads(r.text)
