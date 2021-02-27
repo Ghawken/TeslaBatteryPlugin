@@ -34,7 +34,8 @@ import hashlib
 import re
 #import random
 #import string
-
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 try:
     import indigo
@@ -731,9 +732,9 @@ class Plugin(indigo.PluginBase):
             # string of any length
 
             headers = {
-            #    "User-Agent": UA
-          #      "x-tesla-user-agent": X_TESLA_USER_AGENT,
-           #     "X-Requested-With": "com.teslamotors.tesla",
+      #          "User-Agent": UA
+              #  "x-tesla-user-agent": X_TESLA_USER_AGENT,
+               # "X-Requested-With": "com.teslamotors.tesla",
             }
 
             # Step 1: Obtain the login page
@@ -748,6 +749,9 @@ class Plugin(indigo.PluginBase):
                 ("redirect_uri", "https://auth.tesla.com/void/callback"),
                 ("response_type", "code"),
                 ("scope", "openid email offline_access"),
+                ("prompt","login"),
+                ("audience",""),
+                ("locale","en-US"),
                 ("state", "tesla_explorer"),
             )
 
@@ -755,11 +759,11 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(unicode(params))
 
             ## add to url
-            #urltouse = "https://auth.tesla.com/oauth2/v3/authorize" + "?" + urllib.urlencode(params)
+            urltouse = "https://auth.tesla.com/oauth2/v3/authorize" + "?" + urllib.urlencode(params)
 
             session = requests.Session()
-            resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
-            #resp = session.get(urltouse, headers=headers,timeout=15)
+            #resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
+            resp = session.get(urltouse, headers=headers,timeout=15)
             if not (resp.ok and "<title>" in resp.text):
                 self.logger.debug("Returning None")
                 self.logger.debug(unicode(resp.text))
@@ -938,7 +942,7 @@ class Plugin(indigo.PluginBase):
                     return self.pairingToken
             else:
                 self.logger.error("ExpiresIn and CreateAt Token 0 - Error at beginning.")
-                self.logger.error(u"PairingToken:"+unicode(self.pairingToken)+"    "+ unicode(self.pairintTokencreated_at))
+                self.logger.error(u"PairingToken:"+unicode(self.pairingToken)+"    "+ unicode(self.pairingTokencreated_at))
         #self.authenticate_new()
         return
 
@@ -1497,8 +1501,8 @@ class Plugin(indigo.PluginBase):
         headers = { 'Content-Type': 'application/json', }
         # data = ' {"username":"customer", "password":'+str(self.batPassword)+', "email": "customer@customer.domain",
         #           "force_sm_off": false} '
-        data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"customer@customer.domain","force_sm_off":false}'
-
+        data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"'+str(self.batUsername)+'","force_sm_off":false}'
+        data = '{"username":"customer","password":"7yhrheu5","email":"me@glennhawken.com","force_sm_off":false}'
        # self.logger.error(unicode(data))
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
@@ -1508,7 +1512,7 @@ class Plugin(indigo.PluginBase):
             if self.sessionData == "" or time.time() >=self.sessiontimeStamp:
                 self.logger.debug("Setting up New Token Session Data")
                 self.sessionReq = requests.Session()   ## renew session
-                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=20)
+                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=30)
                 if self.sessionData.status_code == 200:
                     self.logger.debug(unicode(self.sessionData.text))
                     jsonsessionData = json.loads(self.sessionData.text)
@@ -1542,8 +1546,9 @@ class Plugin(indigo.PluginBase):
 
             return json.loads(r.text)
 
-        except IOError:
+        except IOError as ex:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
+            self.logger.debug(u'Error:'+unicode(ex)+":"+unicode(ex.message))
             self.sleep(5)
             self.sessionData =""
             return 'Offline'
