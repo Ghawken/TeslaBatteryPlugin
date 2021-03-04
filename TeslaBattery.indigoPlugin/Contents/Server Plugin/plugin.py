@@ -1502,7 +1502,7 @@ class Plugin(indigo.PluginBase):
         # data = ' {"username":"customer", "password":'+str(self.batPassword)+', "email": "customer@customer.domain",
         #           "force_sm_off": false} '
         data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"'+str(self.batUsername)+'","force_sm_off":false}'
-        data = '{"username":"customer","password":"7yhrheu5","email":"me@glennhawken.com","force_sm_off":false}'
+
        # self.logger.error(unicode(data))
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
