@@ -994,7 +994,7 @@ class Plugin(indigo.PluginBase):
             self.pairingToken = ""
             url = "https://" + str(self.serverip) + '/api/login/Basic'
             payload = {"username": "installer", "password": str(self.password), "email": str(self.username), "force_sm_off": False }
-           # payload = "{"username":"customer","email":"ghawken@hotkey.net.au","password":"7yhrheu5","force_sm_off":false}"
+
             self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
             r = requests.post(url=url, json=payload, timeout=20, verify=False)
 
