@@ -24,7 +24,7 @@
         id="ipAddress" type="textfield">
         <Label>IP Address (required)</Label>
       </Field>
-      <Field id="example3" type="label" fontSize="small" fontColor="darkgray"  >
+      <Field id="example3" type="label" fontSize="small" fontColor="black"  >
         <Label>
             Local Powerwall Battery Gateway IP - will need to enable static IP address in
             DHCP Server</Label>
@@ -50,7 +50,21 @@
 
 
       <Field id="sep2ba" type="separator" fontColor="black"/>
-<Field id="spacea2" type="label" fontSize="small" fontColor="darkgray">
+
+  <Field id="allowOnline" type="checkbox" tooltip="Will disable Online Access." default="false" fontColor="black">
+    <Label>Allow Online Communication</Label>
+    <Description>Enable/Disable</Description>
+  </Field>
+<Field id="spaceafeg2" type="label" fontSize="small" fontColor="black">
+    <Label>
+        Tesla API is undergoing multiple almost daily, certainly monthly changes
+        This means the online aspect of this plugin is prone to fail and log error
+        messages.  This IS needed for control of the Powerwall.
+        It is not needed for data collection of usage, generation etc..
+        Please disable this until API stable.
+    </Label>
+  </Field>
+<Field id="spacea2" type="label" fontSize="small" fontColor="black" enabledBindingId="allowOnline">
     <Label>
         Your Tesla Account email and Passport are the details to enter below.
         This enables Control of the powerwall via the Action Group.  This will
@@ -62,23 +76,24 @@
     </Label>
   </Field>
           <Field
-        id="username" type="textfield">
+        id="username" type="textfield" enabledBindingId="allowOnline">
         <Label>Tesla Username/Email</Label>
       </Field>
-      <Field id="example23" type="label" fontSize="small" fontColor="darkgray"  >
+      <Field id="example23aa" type="label" fontSize="small" fontColor="darkgray"  enabledBindingId="allowOnline">
         <Label>
             Tesla Account Email Username - optional if controlling powerwall and additional
             Battery States
         </Label>
       </Field>
-          <Field id="password" type="textfield">
+          <Field id="password" type="textfield" enabledBindingId="allowOnline">
         <Label>Password</Label>
       </Field>
-      <Field id="example33" type="label" fontSize="small" fontColor="darkgray"  >
+      <Field id="example33334" type="label" fontSize="small" fontColor="darkgray" enabledBindingId="allowOnline" >
         <Label>
             Tesla Account Password - optional if controlling powerwall and additional
             Battery States
         </Label>
+
       </Field>
               <Field
         id="serialnumber" type="textfield" hidden="true">
@@ -88,27 +103,20 @@
         <Label>
             Tesla Gateway Serial Number - optional if controlling powerwall</Label>
       </Field>
+
           <Field
-        id="username" type="textfield">
+        id="Gatusername" type="textfield" hidden="true">
         <Label>Username/Email</Label>
       </Field>
-      <Field id="example23" type="label" fontSize="small" fontColor="black" alignText="right" >
+      <Field id="example23cc" type="label" fontSize="small" fontColor="black" alignText="right" hidden="true">
         <Label> Tesla Gateway Email Username - optional if controlling powerwall</Label>
       </Field>
           <Field
-        id="password" type="textfield">
+        id="Gatpassword" type="textfield" hidden="true">
         <Label>Password</Label>
       </Field>
-      <Field id="example33" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Gateway Password - optional if controlling powerwall</Label>
-      </Field>
-              <Field
-        id="serialnumber" type="textfield">
-        <Label>Gateway Serial Number</Label>
-      </Field>
-      <Field id="example133" type="label" fontSize="small" fontColor="black" alignText="right" >
-        <Label> Tesla Gateway Serial Number - optional if controlling powerwall</Label>
-      </Field>
+      <Field id="example33" type="label" fontSize="small" fontColor="black" alignText="right" />
+
          <Field id="sep2a" type="separator"/>
 
     <Field id="testConnection"

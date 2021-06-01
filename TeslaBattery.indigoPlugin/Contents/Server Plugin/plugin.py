@@ -108,7 +108,7 @@ class Plugin(indigo.PluginBase):
         self.serverip = self.pluginPrefs.get('ipAddress', '')
         self.username = self.pluginPrefs.get('username', '')
         self.password = self.pluginPrefs.get('password', '')
-
+        self.allowOnline = self.pluginPrefs.get('allowOnline', False)
         self.batUsername = self.pluginPrefs.get('Batusername', '')
         self.batPassword = self.pluginPrefs.get('Batpassword', '')
         #self.serialnumber = self.pluginPrefs.get('serialnumber', '')
@@ -163,7 +163,7 @@ class Plugin(indigo.PluginBase):
             self.serverip = valuesDict.get('ipAddress', '')
             self.username = valuesDict.get('username', '')
             self.password = valuesDict.get('password', '')
-
+            self.allowOnline = valuesDict.get('allowOnline', False)
             self.batUsername = valuesDict.get('Batusername', '')
             self.batPassword = valuesDict.get('Batpassword', '')
             #self.serialnumber = valuesDict.get('serialnumber', '')
@@ -250,7 +250,7 @@ class Plugin(indigo.PluginBase):
                     if t.time() > updateBatt:
                         for dev in indigo.devices.itervalues('self.teslaBattery'):
                             self.updateBattery(dev)
-                            if t.time() > updateOnlineSite:
+                            if t.time() > updateOnlineSite and self.allowOnline:
                                 self.parseonlineSiteInfo(dev)
                                 updateOnlineSite = updateOnlineSite + 600
                         updateBatt = t.time() + 60
@@ -924,6 +924,10 @@ class Plugin(indigo.PluginBase):
             #self.logger.info("Please set password and username within Plugin Config and try again")
             return
         ####
+
+        if self.allowOnline == False:
+            self.logger.info("Online access to Tesla disabled in Plugin Config.")
+            return
 
         if self.pairingToken == "":
             self.logger.debug("Token Blank, Creating new.")
