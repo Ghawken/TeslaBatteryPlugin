@@ -732,9 +732,9 @@ class Plugin(indigo.PluginBase):
             # string of any length
 
             headers = {
-      #          "User-Agent": UA
-              #  "x-tesla-user-agent": X_TESLA_USER_AGENT,
-               # "X-Requested-With": "com.teslamotors.tesla",
+                "User-Agent": UA,
+                "x-tesla-user-agent": X_TESLA_USER_AGENT,
+                "X-Requested-With": "com.teslamotors.tesla",
             }
 
             # Step 1: Obtain the login page
