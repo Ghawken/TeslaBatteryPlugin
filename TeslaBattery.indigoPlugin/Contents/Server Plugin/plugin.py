@@ -12,13 +12,17 @@ import logging
 import datetime
 import time
 import time as t
-#import urllib2
+
+import teslapy
+
 import os
 #import shutil
 import sys
 import platform
 #import urlparse
-from urlparse import urlparse,parse_qs
+from urllib.parse import urlparse, urlencode
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError
 
 import requests
 import json
@@ -132,13 +136,8 @@ class Plugin(indigo.PluginBase):
         self.challenge_bytes = hashlib.sha256(self.challenge).digest()
         self.challengeSum = base64.urlsafe_b64encode(self.challenge_bytes).rstrip(b'=')
 
-        self.auth_header = {'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + self.pairingToken}
-        self.TESLA_CLIENT_ID = '81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384'
-        self.TESLA_CLIENT_SECRET = 'c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3'
-
         self.pluginIsInitializing = False
-
+        self.tesla = None
 
 
 
@@ -366,7 +365,7 @@ class Plugin(indigo.PluginBase):
             # check Gatewway and IP up
 
             check = self.sendcommand('site_info/site_name')
-            self.logger.debug(unicode(check))
+            self.logger.debug(str(check))
             if check is None or check=='Offline':
                 # Connection
                 self.logger.info(u'Connection cannot be Established')
@@ -375,7 +374,7 @@ class Plugin(indigo.PluginBase):
 
             # Generate and Check Site Info
             siteinfo = self.sendcommand('site_info')
-            self.logger.debug(unicode(siteinfo))
+            self.logger.debug(str(siteinfo))
             if siteinfo is not None and siteinfo !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaSite'):
@@ -389,7 +388,7 @@ class Plugin(indigo.PluginBase):
                 self.fillsiteinfo(siteinfo, device)
             # Next Device Battery
             battery = self.sendcommand('system_status/soe')
-            self.logger.debug(unicode(battery))
+            self.logger.debug(str(battery))
             if battery is not None and battery !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaBattery'):
@@ -407,7 +406,7 @@ class Plugin(indigo.PluginBase):
 
             # Next Grid Status Device
             gridstatus = self.sendcommand('system_status/grid_status')
-            #self.logger.debug(unicode(gridstatus))
+            #self.logger.debug(str(gridstatus))
             if gridstatus is not None and gridstatus !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaGridStatus'):
@@ -426,7 +425,7 @@ class Plugin(indigo.PluginBase):
                 # Next Grid Meters Device
 
             meters = self.sendcommand('meters/aggregates')
-            #self.logger.debug(unicode(meters))
+            #self.logger.debug(str(meters))
             if meters is not None and meters !='Offline':
                 devFound = False
                 for device in indigo.devices.iter('self.teslaMeters'):
@@ -444,7 +443,7 @@ class Plugin(indigo.PluginBase):
             self.sleep(2)
 
         except Exception as error:
-            self.logger.exception(u'Exception within generate Devices'+unicode(error.message))
+            self.logger.exception(u'Exception within generate Devices'+str(error.message))
 
 
 ## Check Connection
@@ -456,7 +455,7 @@ class Plugin(indigo.PluginBase):
 
             self.serverip = valuesDict['ipAddress']
             check = self.sendcommand('site_info/site_name')
-            self.logger.debug(unicode(check))
+            self.logger.debug(str(check))
             if check is None or check == 'Offline':
                 # Connection
                 self.logger.debug(u'Connection cannot be Established')
@@ -467,7 +466,7 @@ class Plugin(indigo.PluginBase):
             return valuesDict
 
         except Exception as error:
-            self.errorLog(u'error within checkConnection'+unicode(error.message))
+            self.errorLog(u'error within checkConnection'+str(error.message))
     ##
     def sendcommandslowtimeout(self, cmd):
 
@@ -482,21 +481,21 @@ class Plugin(indigo.PluginBase):
             r = requests.get(self.url, timeout=10)
 
             if r.status_code == 502:
-                self.logger.debug(u'Status code'+unicode(r.status_code) )
-                self.logger.debug(u'Text :'+unicode(r.text))  #r.text
+                self.logger.debug(u'Status code'+str(r.status_code) )
+                self.logger.debug(u'Text :'+str(r.text))  #r.text
                 self.logger.debug(u'Error Running command.  ?Powerwall offline')
                 return 'Offline'
             if r.status_code != 200:
-                self.logger.debug(u'Status code'+unicode(r.status_code) )
-                self.logger.debug(u'Text :'+unicode(r.text))  #r.text
+                self.logger.debug(u'Status code'+str(r.status_code) )
+                self.logger.debug(u'Text :'+str(r.text))  #r.text
                 self.logger.debug(u'Error Running command')
                 return 'Offline'
             else:
                 if self.debugextra:
-                    self.logger.debug(u'SUCCESS Text :' + unicode(r.text))
+                    self.logger.debug(u'SUCCESS Text :' + str(r.text))
 
             if self.debugextra:
-                self.logger.debug(u'sendcommand r.json result:'+ unicode(r.json()))
+                self.logger.debug(u'sendcommand r.json result:'+ str(r.json()))
 
             return r.json()
 
@@ -508,199 +507,12 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'sendCommand has ConnectionError and cannot connect to Gateway.')
             self.sleep(5)
             pass
-    ## API Calls
-    # def sendcommand(self, cmd):
-    #     # change to threading given CURL and timeouts.. sigh...
-    #     SendCommand = threading.Thread(target=self.Threadsendcommand,
-    #                                        args=[self, cmd])
-    #     timerkill= Timer(3,SendCommand.kill)
-    #     try:
-    #         SendCommand.start()
-    #
-    #         SendCommand.join(10)
 
     def killcurl(self, cmd, f):
     # call this to report timeouts from subprocess curl to Indigo
         if self.debugextra:
-            self.logger.debug(u'TimeOut for Curl Subprocess. Called command:'+unicode(cmd))
+            self.logger.debug(u'TimeOut for Curl Subprocess. Called command:'+str(cmd))
         f.kill()
-###
-###  New Online Changes..
-###
-#     def rand_str(self, chars=43):
-#         letters = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_"
-#         return "".join(random.choice(letters) for i in range(chars))
-#
-#     def authUrl(self):
-#         print "getting url"
-#         getVars = {'client_id': 'ownerapi',
-#                    'code_challenge': self.challengeSum,
-#                    'code_challenge_method' : "S256",
-#                    'redirect_uri' : "https://auth.tesla.com/void/callback",
-#                    'response_type' : "code",
-#                    'scope' : "openid email offline_access",
-#                    'state' : "tesla_exporter"
-#         }
-#         url = 'https://auth.tesla.com/oauth2/v3/authorize'
-#
-#         # Python 2:
-#         result = url + "?" + urllib.urlencode(getVars)
-#         self.logger.debug(result)
-#         return result
-#
-#     def authenticate_new(self, params=None):
-#         ## from here with thanks!
-#         ## https://github.com/fkhera/powerwallCloud/blob/master/powerwallBackup.py
-#
-#         try:
-#             session = requests.Session()
-#             self.logger.debug( "authenticate method")
-#             auth_url = self.authUrl();
-#             UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 Build/QQ2A.200305.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/85.0.4183.81 Mobile Safari/537.36"
-#             X_TESLA_USER_AGENT = "TeslaApp/3.10.9-433/adff2e065/android/10"
-#             headers = {
-#                 "User-Agent": UA,
-#                 "x-tesla-user-agent": X_TESLA_USER_AGENT,
-#                 "X-Requested-With": "com.teslamotors.tesla",
-#             }
-#             resp = session.get(auth_url, headers=headers)
-#
-#             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
-#             transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
-#
-#             data = {
-#                 "_csrf": csrf,
-#                 "_phase": "authenticate",
-#                 "_process": "1",
-#                 "transaction_id": transaction_id,
-#                 "cancel": "",
-#                 "identity": self.username,
-#                 "credential": self.password,
-#             }
-#             self.logger.debug( "Opening session with login")
-#             self.logger.debug(unicode(auth_url))
-#             self.logger.debug(unicode(headers))
-#             self.logger.debug(unicode(data))
-#             # Important to say redirects false cause this will result in 302 and need to see next data
-#             resp = session.post(auth_url, headers=headers, data=data, allow_redirects=False)
-#             # Determine if user has MFA enabled
-#             # In that case there is no redirect to `https://auth.tesla.com/void/callback` and app shows new form with Passcode / Backup Passcode field
-#             is_mfa = True if resp.status_code == 200 and "/mfa/verify" in resp.text else False
-#
-#             self.logger.debug( "isMFA: " + str(is_mfa) )
-#
-#             if is_mfa:
-#                 getVars = {'transaction_id': transaction_id}
-#                 url = 'https://auth.tesla.com/oauth2/v3/authorize/mfa/factors'
-#                 mfaUrl = url + "?" + urllib.urlencode(getVars)
-#                 resp = session.get(mfaUrl, headers=headers)
-#                 # {
-#                 #     "data": [
-#                 #         {
-#                 #             "dispatchRequired": false,
-#                 #             "id": "41d6c32c-b14a-4cef-9834-36f819d1fb4b",
-#                 #             "name": "Device #1",
-#                 #             "factorType": "token:software",
-#                 #             "factorProvider": "TESLA",
-#                 #             "securityLevel": 1,
-#                 #             "activatedAt": "2020-12-07T14:07:50.000Z",
-#                 #             "updatedAt": "2020-12-07T06:07:49.000Z",
-#                 #         }
-#                 #     ]
-#                 # }
-#                 self.logger.debug(resp.text)
-#                 factor_id = resp.json()["data"][0]["id"]
-#
-#                 # Can use Passcode
-#                 data = {"transaction_id": transaction_id, "factor_id": factor_id, "passcode": "YOUR_PASSCODE"}
-#                 resp = session.post("https://auth.tesla.com/oauth2/v3/authorize/mfa/verify", headers=headers, json=data)
-#                 # ^^ Content-Type - application/json
-#                 self.logger.debug(resp.text)
-#                 # {
-#                 #     "data": {
-#                 #         "id": "63375dc0-3a11-11eb-8b23-75a3281a8aa8",
-#                 #         "challengeId": "c7febba0-3a10-11eb-a6d9-2179cb5bc651",
-#                 #         "factorId": "41d6c32c-b14a-4cef-9834-36f819d1fb4b",
-#                 #         "passCode": "985203",
-#                 #         "approved": true,
-#                 #         "flagged": false,
-#                 #         "valid": true,
-#                 #         "createdAt": "2020-12-09T03:26:31.000Z",
-#                 #         "updatedAt": "2020-12-09T03:26:31.000Z",
-#                 #     }
-#                 # }
-#                 if "error" in resp.text or not resp.json()["data"]["approved"] or not resp.json()["data"]["valid"]:
-#                     raise ValueError("Invalid passcode.")
-#
-#                 # Can use Backup Passcode
-#                 data = {"transaction_id": transaction_id, "backup_code": "ONE_OF_BACKUP_CODES"}
-#                 resp = session.post(
-#                     "https://auth.tesla.com/oauth2/v3/authorize/mfa/backupcodes/attempt", headers=headers, json=data
-#                 )
-#                 # ^^ Content-Type - application/json
-#                 self.logger.debug(resp.text)
-#                 # {
-#                 #     "data": {
-#                 #         "valid": true,
-#                 #         "reason": null,
-#                 #         "message": null,
-#                 #         "enrolled": true,
-#                 #         "generatedAt": "2020-12-09T06:14:23.170Z",
-#                 #         "codesRemaining": 9,
-#                 #         "attemptsRemaining": 10,
-#                 #         "locked": false,
-#                 #     }
-#                 # }
-#                 if "error" in resp.text or not resp.json()["data"]["valid"]:
-#                     raise ValueError("Invalid backup passcode.")
-#
-#                 data = {"transaction_id": transaction_id}
-#                 resp = session.post(
-#                     "https://auth.tesla.com/oauth2/v3/authorize",
-#                     headers=headers,
-#                     params=params,
-#                     data=data,
-#                     allow_redirects=False,
-#                 )
-#
-#             # If not MFA This code plays instead , which is parising location
-#             self.logger.debug( "Coming to non MFA flow:" )
-#             code_url = resp.headers["location"]
-#             self.logger.debug(unicode(code_url))
-#             parsed = urlparse.urlparse(code_url)
-#             code = urlparse.parse_qs(parsed.query)['code']
-#
-#             payload = {
-#                 "grant_type": "authorization_code",
-#                 "client_id": "ownerapi",
-#                 "code_verifier": self.rand_str(108),
-#                 "code": code,
-#                 "redirect_uri": "https://auth.tesla.com/void/callback",
-#             }
-#
-#             self.logger.debug(unicode(headers))
-#             self.logger.debug(unicode(payload))
-#
-#             resp = session.post("https://auth.tesla.com/oauth2/v3/token", headers=headers, json=payload)
-#             access_token = resp.json()["access_token"]
-#
-#             headers["authorization"] = "bearer " + access_token
-#             payload = {
-#                 "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-#                 "client_id": self.TESLA_CLIENT_ID,
-#             }
-#             resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload)
-#             owner_access_token = resp.json()["access_token"]
-#
-#             self.pairingToken = owner_access_token
-#             self.auth_header = {'Authorization': 'Bearer ' + self.pairingToken}
-#
-#         except:
-#             # printing stack trace
-#             self.logger.exception("Exception in new Authenicate")
-#
-# ######
-
 
     def gen_params(self):
         verifier_bytes = os.urandom(86)
@@ -710,217 +522,13 @@ class Plugin(indigo.PluginBase):
         return code_verifier, code_challenge, state
 
     # Either return a valid TeslaToken of None if login did fail
-    def GetTokenFromLoginPW(self, teslalogin, teslapw):
-
-        try:
-            # see https://tesla-api.timdorr.com/api-basics/authentication for new api mandatory since feb 2021
-            # Code inspired from https://github.com/enode-engineering/tesla-oauth2/blob/main/tesla.py
-
-            self.logger.debug("GetTokenfromloginPW called.")
-            # tesla client id and secret which are everywhere on internet
-            CLIENT_ID = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"
-            # Avoid setting a User-Agent header that looks like a browser (such as Chrome or
-            # Safari). The SSO service has protections in place that will require executing
-            # JavaScript if a browser-like user agent is detected
-            UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 Build/QQ2A.200305.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/85.0.4183.81 Mobile Safari/537.36"
-            X_TESLA_USER_AGENT = "TeslaApp/3.10.9-433/adff2e065/android/10"
-
-            # Subsequent requests to the SSO service will require a "code verifier" and
-            # "code challenge". These are a random 86-character alphanumeric string and
-            # its SHA-256 hash encoded in URL-safe base64 (base64url).
-            # You will also need a stable state value for requests, which is a random
-            # string of any length
-
-            headers = {
-                "User-Agent": UA,
-                "x-tesla-user-agent": X_TESLA_USER_AGENT,
-                "X-Requested-With": "com.teslamotors.tesla",
-            }
-
-            # Step 1: Obtain the login page
-            code_verifier, code_challenge, state = self.gen_params()
-
-            # The request is made with a redirect_url of
-            # "https://auth.tesla.com/void/callback", which is a non-existent page
-            params = (
-                ("client_id", "ownerapi"),
-                ("code_challenge", code_challenge),
-                ("code_challenge_method", "S256"),
-                ("redirect_uri", "https://auth.tesla.com/void/callback"),
-                ("response_type", "code"),
-                ("scope", "openid email offline_access"),
-                ("prompt","login"),
-                ("audience",""),
-                ("locale","en-US"),
-                ("state", "tesla_explorer"),
-            )
-
-            self.logger.debug(unicode(headers))
-            self.logger.debug(unicode(params))
-
-            ## add to url
-            urltouse = "https://auth.tesla.com/oauth2/v3/authorize" + "?" + urllib.urlencode(params)
-
-            session = requests.Session()
-            #resp = session.get("https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, timeout=15)
-            resp = session.get(urltouse, headers=headers,timeout=15)
-            if not (resp.ok and "<title>" in resp.text):
-                self.logger.debug("Returning None")
-                self.logger.debug(unicode(resp.text))
-                return ""
-
-            #self.logger.debug(unicode(resp.text))
-            # Step 2: Obtain an authorization code
-            # This will simulate a user submitting the form from the previous request
-            # in their browser. Ensure that the hidden <input>s are provided as POST
-            # body parameters and the Cookie header is set
-            csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
-            transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
-
-            self.logger.debug(u"CSRF="+unicode(csrf))
-            self.logger.debug(u"transaction_id="+unicode(transaction_id))
-
-            data = {
-                "_csrf": csrf,
-                "_phase": "authenticate",
-                "_process": "1",
-                "transaction_id": transaction_id,
-                "cancel": "",
-                "identity": teslalogin,
-                "credential": teslapw,
-            }
-
-            resp = session.post(
-                "https://auth.tesla.com/oauth2/v3/authorize", headers=headers, params=params, data=data, timeout=25,
-                allow_redirects=False
-            )
-            # This will respond with a 302 HTTP response code, which will attempt to
-            # redirect to the redirect_uri with additional query parameters added.
-            # Returns 200 if login/PW is invalid
-            if not (resp.ok and (resp.status_code == 302 or "<title>" in resp.text)):
-                self.logger.error("Error Here")
-                self.logger.error(unicode(resp.text))
-                return None
-
-            # Step 3: Exchange authorization code for bearer token
-            # This new URL is located in the location header. You should not follow it, as
-            # it is non-existent. Instead, you should parse this URL and extract the
-            # code query parameter, which is your authorization code.
-            code = parse_qs(resp.headers["location"])["https://auth.tesla.com/void/callback?code"]
-
-            # This is a standard OAuth 2.0 Authorization Code exchange. This endpoint uses
-            # JSON for the request and response bodies
-            #headers = {"User-Agent": UA } #, "x-tesla-user-agent": X_TESLA_USER_AGENT}
-            payload = {
-                "grant_type": "authorization_code",
-                "client_id": "ownerapi",
-                "code_verifier": code_verifier.decode("utf-8"),
-                "code": code,
-                "redirect_uri": "https://auth.tesla.com/void/callback",
-            }
-
-            resp = session.post("https://auth.tesla.com/oauth2/v3/token", headers=headers, json=payload)
-            resp_json = resp.json()
-            access_token = resp_json["access_token"]
-
-            # Step 4: Exchange bearer token for access token
-            headers["authorization"] = "bearer " + access_token
-            payload = {
-                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                "client_id": CLIENT_ID,
-            }
-            resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload)
-
-            # save our tokens
-            tokens = resp.json()
-
-            access_token = tokens["access_token"]
-            self.pairingTokenexpires_in = int(tokens["expires_in"])
-            self.pairingTokencreated_at = int(tokens["created_at"])
-            self.pairingTokenrefresh_token = tokens["refresh_token"]
-
-            self.logger.debug("New Pairing Token Returned:"+unicode(self.pairingToken))
-            self.logger.debug("New token Expires_in:"+unicode(self.pairingTokenexpires_in))
-            self.logger.debug("New token created_at:"+unicode(self.pairingTokencreated_at))
-
-            return access_token
-        except:
-            self.logger.exception("Caught Login Exception GetTokenfromLogin")
-            return ""
-
-    # Either return a valid TeslaToken of None if login did fail
-    def GetTokenFromRefreshToken(self,refreshtoken):
-        try:
-            self.logger.debug("Get new Token From RefreshToken called.")
-            # tesla client id and secret which are everywhere on internet
-            CLIENT_ID = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"
-            # Avoid setting a User-Agent header that looks like a browser (such as Chrome or
-            # Safari). The SSO service has protections in place that will require executing
-            # JavaScript if a browser-like user agent is detected
-            UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 Build/QQ2A.200305.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/85.0.4183.81 Mobile Safari/537.36"
-            X_TESLA_USER_AGENT = "TeslaApp/3.10.9-433/adff2e065/android/10"
-
-            headers = {"user-agent": UA, "x-tesla-user-agent": X_TESLA_USER_AGENT}
-
-            ## remove all headers; probably need to change back... once tesla fixes WAF
-            headers = {}
-
-            payload = {
-                "grant_type": "refresh_token",
-                "client_id": "ownerapi",
-                "refresh_token": refreshtoken,
-                "scope": "openid email offline_access",
-            }
-            session = requests.Session()
-
-            resp = session.post("https://auth.tesla.com/oauth2/v3/token", headers=headers, json=payload, timeout=15)
-            resp_json = resp.json()
-            try:
-                # will not be found if refresh token was invalid
-                access_token = resp_json["access_token"]
-                self.logger.debug("** New bearer token received:"+unicode(access_token))
-            except KeyError:
-                self.logger.debug("Error with Refreshing Token")
-                self.logger.debug(unicode(resp.text))
-                return None
-
-            # Step 4: Exchange bearer token for access token
-            headers["authorization"] = "bearer " + access_token
-            payload = {
-                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                "client_id": CLIENT_ID,
-            }
-            resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload, timeout=20)
-
-            # save our tokens
-            tokens = resp.json()
-            self.pairingToken = tokens["access_token"]
-            self.pairingTokenexpires_in = int(tokens["expires_in"])
-            self.pairingTokencreated_at = int(tokens["created_at"])
-            self.pairingTokenrefresh_token = tokens["refresh_token"]
-            self.logger.debug("** Refresh Token renew successful")
-            self.logger.debug("New Pairing Token Returned:"+unicode(self.pairingToken))
-            self.logger.debug("New token Expires_in:"+unicode(self.pairingTokenexpires_in))
-            self.logger.debug("New token created_at:"+unicode(self.pairingTokencreated_at))
-
-            return self.pairingToken
-        except:
-            self.logger.exception("Error in Refresh Token")
-            return ""
-
-    def menurefreshToken(self):
-
-        self.logger.debug("Refresh Online Token Called.")
-        if self.pairingTokenrefresh_token !="":
-            self.logger.debug("RefreshToken:"+unicode(self.pairingTokenrefresh_token))
-            self.pairingToken = self.GetTokenFromRefreshToken(self.pairingTokenrefresh_token)
 
     def getauthTokenOnline(self):
         if self.debugextra:
-            self.logger.debug(u'getauthTokenOnline. Number of Active Threads:' + unicode(
+            self.logger.debug(u'getauthTokenOnline. Number of Active Threads:' + str(
                     threading.activeCount()))
 
-        if self.username == "" or self.password =="":
+        if self.username == "":
             #self.logger.info("Please set password and username within Plugin Config and try again")
             return
         ####
@@ -929,103 +537,36 @@ class Plugin(indigo.PluginBase):
             self.logger.info("Online access to Tesla disabled in Plugin Config.")
             return
 
-        if self.pairingToken == "":
-            self.logger.debug("Token Blank, Creating new.")
-            self.pairingToken = self.GetTokenFromLoginPW(str(self.username),str(self.password))
-        else:
-            if self.pairingTokenexpires_in !=0 and self.pairingTokencreated_at !=0:
-                if datetime.datetime.fromtimestamp(self.pairingTokencreated_at + self.pairingTokenexpires_in / 2) >= datetime.datetime.now():
-                    # Token is still valid...
-                    self.logger.debug("******** Token Valid, returning token...")
-                    return self.pairingToken
-                else:
-                    self.logger.debug("*********** Token Not Valid, Refreshing with refresh Token")
-                    self.pairingToken = self.GetTokenFromRefreshToken(self.pairingTokenrefresh_token)
-                    if self.pairingToken == "":
-                        self.logger.error("Refresh Token Failed.")
-                    return self.pairingToken
+        self.tesla = teslapy.Tesla(self.username)
+        self.logger.debug(f"{self.tesla.token}")
+
+        self.logger.debug("{}".format(self.tesla.token["access_token"]) )
+
+        if not self.tesla.authorized:
+            if "refreshToken" in self.pluginPrefs:
+                if self.pluginPrefs["refreshToken"] != None:
+                    if len(self.pluginPrefs["refreshToken"]) >5:
+                        self.tesla.refresh_token(refresh_token=self.pluginPrefs['refreshToken'])
+                    else:
+                        self.logger.info("To use online features please enter Refresh Token in Plugin Config Screen.")
+                        self.pluginPrefs["allowOnline"] = False
+                        return
             else:
-                self.logger.error("ExpiresIn and CreateAt Token 0 - Error at beginning.")
-                self.logger.error(u"PairingToken:"+unicode(self.pairingToken)+"    "+ unicode(self.pairingTokencreated_at))
-        #self.authenticate_new()
-        return
+                self.logger.info("To use online features please enter Refresh Token.")
+                self.pluginPrefs["allowOnline"] = False
+                return
 
-
-        try:
-            self.pairingToken = ""
-            url = "https://owner-api.teslamotors.com/oauth/token"
-            payload = {"grant_type": "password", "email": str(self.username), "password": str(self.password),
-                       "email": str(self.username),
-                       "client_secret": "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3",
-                       "client_id": "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"}
-            headers = {'content-type': 'application/json'}
-            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
-            r = requests.post(url=url, json=payload, headers=headers, timeout=20, verify=False)
-
-            if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
-                jsonResponse = r.json()
-                if 'access_token' in jsonResponse:
-                    self.logger.debug(jsonResponse['access_token'])
-                    self.pairingToken = jsonResponse['access_token']
-            else:
-                self.logger.debug(unicode(r.text))
-
-                return r.text
-
-            ## pairingToken should exists
-            if self.pairingToken == "":
-                self.logger.info("No Token received?  Ending.")
-                return ""
-
-
-        except Exception, e:
-            self.logger.debug("Error getting Token : " + repr(e))
-            self.logger.debug( "Error connecting"+unicode(e.message))
-            self.connected = False
-
-    def getauthToken(self):
-
-        if self.debugextra:
-            self.logger.debug(u'Thread Send Login Basic called. Number of Active Threads:' + unicode(
-                    threading.activeCount()))
-
-        if self.serverip == '':
-            self.logger.debug(u'No IP address Entered..')
+            self.pairingToken = self.tesla.token["access_token"]
+            self.logger.debug(f"{self.tesla.token}")
+            self.logger.debug(f"{self.tesla.battery_list()}")
             return
 
-        try:
-            self.pairingToken = ""
-            url = "https://" + str(self.serverip) + '/api/login/Basic'
-            payload = {"username": "installer", "password": str(self.password), "email": str(self.username), "force_sm_off": False }
-
-            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
-            r = requests.post(url=url, json=payload, timeout=20, verify=False)
-
-            if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
-                jsonResponse = r.json()
-                if 'token' in jsonResponse:
-                    self.logger.debug(jsonResponse['token'])
-                    self.pairingToken = jsonResponse['token']
-            else:
-                self.logger.error(unicode(r.text))
-                return ""
-
-            ## pairingToken should exists
-            if self.pairingToken == "":
-                self.logger.info("No Token received?  Ending.")
-                return ""
-
-        except Exception, e:
-            self.logger.debug("Error getting Token : " + repr(e))
-            self.logger.debug( "Error connecting"+unicode(e.message))
-            self.connected = False
+        self.pairingToken = self.tesla.token["access_token"]
 
     def changeOperation(self, mode, reservepercentage):
 
         if self.debugextra:
-            self.logger.debug(u'Change Operation called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'Change Operation called. Number of Active Threads:' + str(
                 threading.activeCount()))
 
         ## 1.20.0 Changes to https and SSL for Tesla Software
@@ -1040,7 +581,7 @@ class Plugin(indigo.PluginBase):
 
         #percentage = int(reservepercentage)
 
-        self.logger.debug("Reserve Percentage is :"+unicode(percentage)+" and prior "+unicode(reservepercentage))
+        self.logger.debug("Reserve Percentage is :"+str(percentage)+" and prior "+str(reservepercentage))
 
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
@@ -1050,26 +591,26 @@ class Plugin(indigo.PluginBase):
             headers = {'Authorization': 'Bearer '+str(self.pairingToken)  }
 
             payload = {"real_mode": str(mode), "backup_reserve_percent": percentage}
-            self.logger.debug("Calling "+unicode(url)+" with headers:"+unicode(headers)+ " and payload "+unicode(payload))
+            self.logger.debug("Calling "+str(url)+" with headers:"+str(headers)+ " and payload "+str(payload))
 
             r = requests.post(url=url, json=payload, headers=headers,timeout=10, verify=False)
 
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 jsonResponse = r.json()
                 if 'real_mode' in jsonResponse:
                     self.logger.debug(jsonResponse['real_mode'])
                     if str(jsonResponse['real_mode']) != str(mode):
-                        self.logger.error(unicode("Did not change mode correctly!!"))
+                        self.logger.error(str("Did not change mode correctly!!"))
                         return False
                     return True
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error(str(r.text))
                 return False
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.logger.debug("Exception setting Operation" + str(e.message))
             self.connected = False
 
     def getsiteInfoOnline(self):
@@ -1077,66 +618,66 @@ class Plugin(indigo.PluginBase):
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/"+str(self.energysiteid)+"/site_info"
 
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
-            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+            self.logger.debug( "Calling " + str(url) + " with headers:" + str(headers) )
             r = requests.get(url=url, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 return r.json()
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error(str(r.text))
                 return ""
             ##  Now update battery reserve percentage
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.logger.debug("Exception setting Operation" + str(e.message))
             return ""
 
     def changeBatteryReserveOnline(self, reservepercentage):
         if self.debugextra:
-            self.logger.debug(u'Change Battery Reserve Alone called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'Change Battery Reserve Alone called. Number of Active Threads:' + str(
                 threading.activeCount()))
         try:
             percentage = float("%.1f" % float(reservepercentage))
 
             # percentage = int(reservepercentage)
 
-            self.logger.debug("Reserve Percentage is :" + unicode(percentage) + " and prior " + unicode(reservepercentage))
+            self.logger.debug("Reserve Percentage is :" + str(percentage) + " and prior " + str(reservepercentage))
 
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/" + str(self.energysiteid) + "/backup"
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
             payload = {"backup_reserve_percent": percentage}
             self.logger.debug(
-                "Calling " + unicode(url) + " with headers:" + unicode(headers) + " and payload " + unicode(payload))
+                "Calling " + str(url) + " with headers:" + str(headers) + " and payload " + str(payload))
             r = requests.post(url=url, json=payload, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 return True
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error(str(r.text))
                 return False
             ##  Now update battery reserve percentage
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.logger.debug("Exception setting Operation" + str(e.message))
             self.connected = False
 
     def changeOperationOnline(self, mode, reservepercentage, setreserve):
 
         if self.debugextra:
-            self.logger.debug(u'Change OperationOnline called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'Change OperationOnline called. Number of Active Threads:' + str(
                 threading.activeCount()))
 
         try:
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/"+str(self.energysiteid)+"/operation"
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
             payload = {"default_real_mode": str(mode)}
-            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) + " and payload " + unicode(payload))
+            self.logger.debug( "Calling " + str(url) + " with headers:" + str(headers) + " and payload " + str(payload))
             r = requests.post(url=url, json=payload, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error(str(r.text))
                 return False
             ##  Now update battery reserve percentage
 
@@ -1153,57 +694,21 @@ class Plugin(indigo.PluginBase):
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
             payload = {"backup_reserve_percent": percentage}
             self.logger.debug(
-                "Calling " + unicode(url) + " with headers:" + unicode(headers) + " and payload " + unicode(payload))
+                "Calling " + str(url) + " with headers:" + str(headers) + " and payload " + str(payload))
             r = requests.post(url=url, json=payload, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 return True
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error(str(r.text))
                 return False
         ##  Now update battery reserve percentage
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + unicode(e.message))
+            self.logger.debug("Exception setting Operation" + str(e.message))
             self.connected = False
 
-    # def setOperationalMode(self, action):
-    #
-    #     try:
-    #         self.logger.debug(u"setOperational Mode Called as Action.")
-    #
-    #         self.changingoperationalmode = True
-    #
-    #         self.logger.debug(unicode(action))
-    #
-    #         mode = action.props.get('mode',"")
-    #         reserve = action.props.get("reserve","")
-    #
-    #         self.password = self.serialnumber
-    #         self.getauthToken()
-    #
-    #         if self.pairingToken !="":
-    #             if self.changeOperation(mode, reserve):  ## success do the rest
-    #                 self.setconfigCompleted()
-    #         # now cycle Powerwall
-    #                 #self.getauthToken()
-    #                 self.setsitemasterRun()
-    #             else:
-    #                 self.logger.info("Set Mode/Change Operation failed.  Check error message.")
-    #                 self.logger.info("Restarting Sitemaster.")
-    #                 self.setsitemasterRun()
-    #
-    #         else:
-    #             self.logger.info("Failed to get Installer Pairing token.  Serial number should be installer password.")
-    #
-    #         self.changingoperationalmode = False
-    #         return
-    #
-    #     except Exception, e:
-    #         self.logger.exception("Error change Operatonal Mode : " + repr(e))
-    #         self.logger.debug("Error change Operation Mode :" + unicode(e.message))
-    #         self.changingoperationalmode = False
 
     def setBatteryReserve(self, action):
 
@@ -1211,7 +716,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u"setBatteryReserve Mode Online, given 1.50.1. changes Called as Action.")
 
             self.changingoperationalmode = True
-            self.logger.debug(unicode(action))
+            self.logger.debug(str(action))
 
             reserve = action.props.get("reserve","")
 
@@ -1223,7 +728,7 @@ class Plugin(indigo.PluginBase):
                 if self.getsiteInfo(self.pairingToken) != "":
                     #self.getsiteInfoOnline()
                     if self.changeBatteryReserveOnline(reserve):  ## success do the rest
-                        self.logger.info(u'Battery Reserved changed to with backup reserve:'+unicode(reserve) )
+                        self.logger.info(u'Battery Reserved changed to with backup reserve:'+str(reserve) )
                     else:
                         self.logger.info("Set Mode/Change Battery Reserve Operation failed.  Check debug log /and or error message.")
                         self.logger.info("Trying again, one more time..")
@@ -1231,7 +736,7 @@ class Plugin(indigo.PluginBase):
                         self.getauthTokenOnline()
                         if self.getsiteInfo(self.pairingToken) != "":
                             if self.changeBatteryReserveOnline(reserve):  ## success do the rest
-                                self.logger.info(u'Battery Reserved changed to with backup reserve:' + unicode(reserve))
+                                self.logger.info(u'Battery Reserved changed to with backup reserve:' + str(reserve))
                             else:
                                 self.logger.info(  "Set Mode/Change Battery Reserve Operation failed Again, giving up.  Check debug log /and or error message.")
                 else:
@@ -1247,14 +752,13 @@ class Plugin(indigo.PluginBase):
             self.changingoperationalmode = False
             return
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error change Operatonal Mode : " + repr(e))
-            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+            self.logger.debug("Error change Operation Mode :" + str(e.message))
             self.changingoperationalmode = False
 
     def parseonlineSiteInfo(self, device):
         self.logger.debug("parse Online Site Info for usefulness...")
-
         try:
             self.getauthTokenOnline()
             #
@@ -1298,9 +802,9 @@ class Plugin(indigo.PluginBase):
                     update_time = t.strftime('%c')
                     device.updateStateOnServer('deviceLastUpdated', value=str(update_time))
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error Getting Online Site Info : " + repr(e))
-            self.logger.debug("Error Getting Online Site Info" + unicode(e.message))
+            self.logger.debug("Error Getting Online Site Info" + str(e.message))
             self.changingoperationalmode = False
 
 
@@ -1310,7 +814,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u"setOperational Mode Online, given 1.50.1. changes Called as Action.")
 
             self.changingoperationalmode = True
-            self.logger.debug(unicode(action))
+            self.logger.debug(str(action))
 
             mode = action.props.get('mode',"")
             setreserve = action.props.get('setbatteryreserve', False)
@@ -1326,9 +830,9 @@ class Plugin(indigo.PluginBase):
                     self.getsiteInfoOnline()
                     if self.changeOperationOnline(mode, reserve, setreserve):  ## success do the rest
                         if setreserve:
-                            self.logger.info(u'Successfully changed to mode:'+unicode(mode)+u" with backup reserve:"+unicode(reserve))
+                            self.logger.info(u'Successfully changed to mode:'+str(mode)+u" with backup reserve:"+str(reserve))
                         else:
-                            self.logger.info(  u'Successfully changed to mode:' + unicode(mode) + u" with backup reserve not changed")
+                            self.logger.info(  u'Successfully changed to mode:' + str(mode) + u" with backup reserve not changed")
 
                     else:
                         self.logger.info("Set Mode/Change Operation failed.  Check error message, and/or debug log.")
@@ -1338,9 +842,9 @@ class Plugin(indigo.PluginBase):
                         if self.getsiteInfo(self.pairingToken) != "":
                             if self.changeOperationOnline(mode, reserve, setreserve):  ## success do the rest
                                 if setreserve:
-                                    self.logger.info(u'Successfully changed to mode:' + unicode(mode) + u" with backup reserve:" + unicode(reserve))
+                                    self.logger.info(u'Successfully changed to mode:' + str(mode) + u" with backup reserve:" + str(reserve))
                                 else:
-                                    self.logger.info(u'Successfully changed to mode:' + unicode(mode) + u" with backup reserve not changed")
+                                    self.logger.info(u'Successfully changed to mode:' + str(mode) + u" with backup reserve not changed")
                             else:
                                 self.logger.info(u"Set Mode/Change Operation failed Again, giving up.  Please check debug log/error message received.")
                 else:
@@ -1358,9 +862,9 @@ class Plugin(indigo.PluginBase):
             self.changingoperationalmode = False
             return
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error change Operatonal Mode : " + repr(e))
-            self.logger.debug("Error change Operation Mode :" + unicode(e.message))
+            self.logger.debug("Error change Operation Mode :" + str(e.message))
             self.changingoperationalmode = False
 
     def revokeToken(self):
@@ -1375,20 +879,20 @@ class Plugin(indigo.PluginBase):
             headers = {'content-type': 'application/json'}
 
 
-            self.logger.debug("Calling " + unicode(url) + " with payload:" + unicode(payload))
+            self.logger.debug("Calling " + str(url) + " with payload:" + str(payload))
             r = requests.post(url=url, json=payload, headers=headers, timeout=20, verify=False)
 
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 jsonResponse = r.json()
             else:
-                self.logger.debug("revoke Token Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
-                self.logger.debug(unicode(r.text))
+                self.logger.debug("revoke Token Error:"+str(r.text)+" and return code:"+str(r.status_code))
+                self.logger.debug(str(r.text))
                 return ""
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error getsiteInfo Operation : " + repr(e))
-            self.logger.debug("Error getsiteInfo Operation" + unicode(e.message))
+            self.logger.debug("Error getsiteInfo Operation" + str(e.message))
 
     def getsiteInfo(self, localtoken):
 
@@ -1399,33 +903,33 @@ class Plugin(indigo.PluginBase):
             url = "https://owner-api.teslamotors.com/api/1/products"
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
 
-            self.logger.debug("Calling " + unicode(url) + " with headers:" + unicode(headers) )
+            self.logger.debug("Calling " + str(url) + " with headers:" + str(headers) )
 
             r = requests.get(url=url, timeout=15, headers=headers, verify=False)
 
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 jsonResponse = r.json()
                 if 'response' in jsonResponse:
                     for results in jsonResponse['response']:
                         if 'energy_site_id' in results:
                             self.energysiteid = results['energy_site_id']
-                            self.logger.debug("Energy Site ID:"+unicode(self.energysiteid))
+                            self.logger.debug("Energy Site ID:"+str(self.energysiteid))
                             return self.energysiteid
             else:
-                self.logger.error("getSiteInfo Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
-                self.logger.error(unicode(r.text))
+                self.logger.error("getSiteInfo Error:"+str(r.text)+" and return code:"+str(r.status_code))
+                self.logger.error(str(r.text))
                 self.energysiteid =""
                 return ""
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error getsiteInfo Operation : " + repr(e))
-            self.logger.debug("Error getsiteInfo Operation" + unicode(e.message))
+            self.logger.debug("Error getsiteInfo Operation" + str(e.message))
 
     def setsitemasterRun(self):
 
         if self.debugextra:
-            self.logger.debug(u'setSiteMasterRun - 0.5.2 called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'setSiteMasterRun - 0.5.2 called. Number of Active Threads:' + str(
                 threading.activeCount()))
 
         if self.serverip == '':
@@ -1436,28 +940,28 @@ class Plugin(indigo.PluginBase):
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
 
             self.logger.debug(
-                "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+                "Calling " + str(url) + " with headers:" + str(headers) )
 
             r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
             if r.status_code == 202:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 self.logger.info("Sitemaster now Running again,following command success")
             else:
-                self.logger.error("Sitemaster Error:"+unicode(r.text)+" and return code:"+unicode(r.status_code))
-                self.logger.error(unicode(r.text))
+                self.logger.error("Sitemaster Error:"+str(r.text)+" and return code:"+str(r.status_code))
+                self.logger.error(str(r.text))
                 return ""
 
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
-            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.logger.debug("Error setting Operation" + str(e.message))
 
 
     def setconfigCompleted(self):
 
         if self.debugextra:
-            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'setConfigCompleted called. Number of Active Threads:' + str(
                 threading.activeCount()))
 
         if self.serverip == '':
@@ -1466,26 +970,26 @@ class Plugin(indigo.PluginBase):
         try:
             url = "https://" + str(self.serverip) + '/api/config/completed'
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
-            self.logger.debug( "Calling " + unicode(url) + " with headers:" + unicode(headers) )
+            self.logger.debug( "Calling " + str(url) + " with headers:" + str(headers) )
 
             r = requests.get(url=url, timeout=10, headers=headers, verify=False)
 
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 self.logger.debug("Set Config Successfully run")
             else:
-                self.logger.error("Setconfig Error"+ unicode(r.text)+ " return code:"+unicode(r.status_code))
+                self.logger.error("Setconfig Error"+ str(r.text)+ " return code:"+str(r.status_code))
                 return ""
 
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
-            self.logger.debug("Error setting Operation" + unicode(e.message))
+            self.logger.debug("Error setting Operation" + str(e.message))
             self.connected = False
 
     def sendcommand(self, cmd):
 
         if self.debugextra:
-            self.logger.debug(u'ThreadSendCOmmand called. Number of Active Threads:' + unicode(
+            self.logger.debug(u'ThreadSendCOmmand called. Number of Active Threads:' + str(
                     threading.activeCount()))
 
         ## 1.20.0 Changes to https and SSL for Tesla Software
@@ -1507,7 +1011,7 @@ class Plugin(indigo.PluginBase):
         #           "force_sm_off": false} '
         data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"'+str(self.batUsername)+'","force_sm_off":false}'
 
-       # self.logger.error(unicode(data))
+       # self.logger.error(str(data))
         if self.serverip == '':
             self.logger.debug(u'No IP address Entered..')
             return
@@ -1518,41 +1022,41 @@ class Plugin(indigo.PluginBase):
                 self.sessionReq = requests.Session()   ## renew session
                 self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=30)
                 if self.sessionData.status_code == 200:
-                    self.logger.debug(unicode(self.sessionData.text))
+                    self.logger.debug(str(self.sessionData.text))
                     jsonsessionData = json.loads(self.sessionData.text)
                     if 'loginTime' in jsonsessionData:
-                        self.logger.debug("LoginTime: "+unicode(jsonsessionData['loginTime']))
+                        self.logger.debug("LoginTime: "+str(jsonsessionData['loginTime']))
                         timetouse = jsonsessionData['loginTime'].split(".")[0]
-                        #self.logger.debug(unicode(timetouse))
+                        #self.logger.debug(str(timetouse))
                         self.sessiontimeStamp = int(time.mktime(time.strptime(timetouse,"%Y-%m-%dT%H:%M:%S")))+ (60*60)  #1 hour update
-                        self.logger.debug("Date TimeStamp 1 hour in future = "+unicode(self.sessiontimeStamp)       )
+                        self.logger.debug("Date TimeStamp 1 hour in future = "+str(self.sessiontimeStamp)       )
                 else:
-                    self.logger.error(unicode(self.sessionData.text))
+                    self.logger.error(str(self.sessionData.text))
                     self.sessionData = ""
                     return "Offline"
 
             if self.debugextra:
-                self.logger.debug(u'sendcommand called: for url:'+unicode(self.url)+" with data:"+unicode(data))
+                self.logger.debug(u'sendcommand called: for url:'+str(self.url)+" with data:"+str(data))
             r = self.sessionReq.get(self.url, verify=False, timeout=10)
             #self.logger.info(r.text)
             #return json.loads(r.text)
             #return 'Offline'
 
             if r.status_code == 200:
-                self.logger.debug(unicode(r.text))
+                self.logger.debug(str(r.text))
                 return json.loads(r.text)
             else:
-                self.logger.error(unicode(r.text))
+                self.logger.error(str(r.text))
                 return "Offline"
 
             if self.debugextra:
-                self.logger.debug(u'sendcommand r.json result:'+ unicode(json.loads(out)))
+                self.logger.debug(u'sendcommand r.json result:'+ str(json.loads(out)))
 
             return json.loads(r.text)
 
         except IOError as ex:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
-            self.logger.debug(u'Error:'+unicode(ex)+":"+unicode(ex.message))
+            self.logger.debug(u'Error:'+str(ex)+":"+str(ex.message))
             self.sleep(5)
             self.sessionData =""
             return 'Offline'
@@ -1562,7 +1066,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u'fillsiteinfo called')
         try:
             if self.debugextra:
-                self.logger.debug(u'data:'+unicode(data))
+                self.logger.debug(u'data:'+str(data))
             site_name=''
             timezone=''
             nominal_system_energy_kW = ''
@@ -1680,7 +1184,7 @@ class Plugin(indigo.PluginBase):
                 if 'instant_power' in data['battery']:
                     battery_instant_power = data['battery']['instant_power']
                     batterykw = "{0:0.1f}".format(float(data['battery']['instant_power']) / 1000)
-                    if -0.1 <= batterykw <= 0.1:
+                    if -0.1 <= float(batterykw) <= 0.1:
                         batterykw = 0
 
             stateList = [
@@ -1766,7 +1270,7 @@ class Plugin(indigo.PluginBase):
         try:
 
             percentage= float(data['percentage'])
-            self.logger.debug(u'Battery Per:'+unicode(percentage))
+            self.logger.debug(u'Battery Per:'+str(percentage))
             device.updateStateOnServer('charge', percentage)
             device.updateStateOnServer('chargeCP', int(percentage))
             if percentage > 95:
@@ -1825,12 +1329,12 @@ class Plugin(indigo.PluginBase):
             gridfaults = str(device.states['gridFaults'])
 
             if str(data) != '[]':
-                self.logger.debug(u'Grid Faults -- BLANK --'+unicode(gridfaults))
+                self.logger.debug(u'Grid Faults -- BLANK --'+str(gridfaults))
             if str(data) !=gridfaults and gridfaults != '[]':
                 # Data changed
                 self.triggerCheck(device,'gridFault')
 
-            device.updateStateOnServer('gridFaults', value=unicode(data))
+            device.updateStateOnServer('gridFaults', value=str(data))
         except:
             self.logger.exception(u'Caught Exception in Fill Grid faults Info')
 
@@ -1839,7 +1343,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u'fill grid SiteMaster called')
         try:
             sitemaster = device.states['sitemasterRunning']
-            self.logger.debug(u'sitemaster Running Equals:'+unicode(data['running']))
+            self.logger.debug(u'sitemaster Running Equals:'+str(data['running']))
 
             if data['running'] == 'true':
                 # Sitemaster must have started
@@ -1869,17 +1373,17 @@ class Plugin(indigo.PluginBase):
 
     def triggerCheck(self, device,  triggertype):
 
-        self.logger.debug('triggerCheck run.  device.id:'+unicode(device.id)+' triggertype:'+unicode(triggertype))
+        self.logger.debug('triggerCheck run.  device.id:'+str(device.id)+' triggertype:'+str(triggertype))
         try:
 
             if device.states['deviceIsOnline'] == False:
                 self.logger.debug(u'Trigger Cancelled as Device is Not Online')
                 return
 
-            for triggerId, trigger in sorted(self.triggers.iteritems()):
+            for triggerId, trigger in sorted(self.triggers.items()):
 
                 self.logger.debug("Checking Trigger %s (%s), Type: %s,  and event : %s" % (trigger.name, trigger.id, trigger.pluginTypeId,  triggertype))
-                #self.logger.error(unicode(trigger))
+                #self.logger.error(str(trigger))
                 if trigger.pluginTypeId == "gridLoss" and triggertype =='gridLoss':
                     if self.debugtriggers:
                         self.logger.debug("===== Executing gridLoss Trigger %s (%d)" % (trigger.name, trigger.id))

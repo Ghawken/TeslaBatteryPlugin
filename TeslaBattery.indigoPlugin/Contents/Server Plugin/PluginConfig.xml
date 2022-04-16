@@ -66,7 +66,7 @@
   </Field>
 <Field id="spacea2" type="label" fontSize="small" fontColor="black" enabledBindingId="allowOnline">
     <Label>
-        Your Tesla Account email and Passport are the details to enter below.
+        Your Tesla Account email and Refresh Token are the details to enter below.
         This enables Control of the powerwall via the Action Group.  This will
         enable Indigo to change battery backup reserve and alter mode of battery
         from backup, to discharging..
@@ -75,8 +75,7 @@
         possible.
     </Label>
   </Field>
-          <Field
-        id="username" type="textfield" enabledBindingId="allowOnline">
+          <Field id="username" type="textfield" enabledBindingId="allowOnline">
         <Label>Tesla Username/Email</Label>
       </Field>
       <Field id="example23aa" type="label" fontSize="small" fontColor="darkgray"  enabledBindingId="allowOnline">
@@ -85,18 +84,28 @@
             Battery States
         </Label>
       </Field>
-          <Field id="password" type="textfield" enabledBindingId="allowOnline">
+          <Field id="password" type="textfield" enabledBindingId="allowOnline" hidden="True">
         <Label>Password</Label>
       </Field>
-      <Field id="example33334" type="label" fontSize="small" fontColor="darkgray" enabledBindingId="allowOnline" >
+
+      <Field id="example33334" type="label" fontSize="small" fontColor="darkgray" enabledBindingId="allowOnline">
         <Label>
             Tesla Account Password - optional if controlling powerwall and additional
             Battery States
         </Label>
-
       </Field>
-              <Field
-        id="serialnumber" type="textfield" hidden="true">
+          <Field id="refreshToken" type="textfield" default="" enabledBindingId="allowOnline" >
+        <Label>refreshToken</Label>
+      </Field>
+
+      <Field id="example333as34" type="label" fontSize="small" fontColor="darkgray" enabledBindingId="allowOnline" >
+        <Label>
+            Tesla Refresh Token Obtain from Third Party App: (Only needed Once)
+            https://teslascope.com/help/generating-tokens
+        </Label>
+      </Field>
+
+    <Field id="serialnumber" type="textfield" hidden="true">
         <Label>Gateway Serial Number</Label>
       </Field>
       <Field id="example133" type="label" fontSize="small" fontColor="darkgray"  hidden="true">
@@ -104,15 +113,13 @@
             Tesla Gateway Serial Number - optional if controlling powerwall</Label>
       </Field>
 
-          <Field
-        id="Gatusername" type="textfield" hidden="true">
+          <Field id="Gatusername" type="textfield" hidden="true">
         <Label>Username/Email</Label>
       </Field>
       <Field id="example23cc" type="label" fontSize="small" fontColor="black" alignText="right" hidden="true">
         <Label> Tesla Gateway Email Username - optional if controlling powerwall</Label>
       </Field>
-          <Field
-        id="Gatpassword" type="textfield" hidden="true">
+          <Field id="Gatpassword" type="textfield" hidden="true">
         <Label>Password</Label>
       </Field>
       <Field id="example33" type="label" fontSize="small" fontColor="black" alignText="right" />
@@ -127,7 +134,6 @@
 				<Title>Check Connection</Title>
 				<CallbackMethod>testConnection</CallbackMethod>
 	</Field>
-
 
 
     <Field id="generateDevices"

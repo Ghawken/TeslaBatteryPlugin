@@ -4,9 +4,5 @@
     <Name>Toggle Debugging</Name>
     <CallbackMethod>toggleDebugEnabled</CallbackMethod>
   </MenuItem>
-   <MenuItem id="refreshOnlineToken">
-    <Name>Refresh Tesla Token</Name>
-    <CallbackMethod>menurefreshToken</CallbackMethod>
-  </MenuItem>
 
 </MenuItems>
