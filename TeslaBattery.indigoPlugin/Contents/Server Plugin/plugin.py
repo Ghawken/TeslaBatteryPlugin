@@ -38,8 +38,7 @@ import hashlib
 import re
 #import random
 #import string
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+
 
 try:
     import indigo
@@ -443,7 +442,7 @@ class Plugin(indigo.PluginBase):
             self.sleep(2)
 
         except Exception as error:
-            self.logger.exception(u'Exception within generate Devices'+str(error.message))
+            self.logger.exception(u'Exception within generate Devices'+str(error))
 
 
 ## Check Connection
@@ -466,7 +465,7 @@ class Plugin(indigo.PluginBase):
             return valuesDict
 
         except Exception as error:
-            self.errorLog(u'error within checkConnection'+str(error.message))
+            self.errorLog(u'error within checkConnection'+str(error))
     ##
     def sendcommandslowtimeout(self, cmd):
 
@@ -610,7 +609,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + str(e.message))
+            self.logger.debug("Exception setting Operation" + str(e))
             self.connected = False
 
     def getsiteInfoOnline(self):
@@ -629,7 +628,7 @@ class Plugin(indigo.PluginBase):
             ##  Now update battery reserve percentage
         except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + str(e.message))
+            self.logger.debug("Exception setting Operation" + str(e))
             return ""
 
     def changeBatteryReserveOnline(self, reservepercentage):
@@ -659,7 +658,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + str(e.message))
+            self.logger.debug("Exception setting Operation" + str(e))
             self.connected = False
 
     def changeOperationOnline(self, mode, reservepercentage, setreserve):
@@ -706,7 +705,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
-            self.logger.debug("Exception setting Operation" + str(e.message))
+            self.logger.debug("Exception setting Operation" + str(e))
             self.connected = False
 
 
@@ -754,7 +753,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error change Operatonal Mode : " + repr(e))
-            self.logger.debug("Error change Operation Mode :" + str(e.message))
+            self.logger.debug("Error change Operation Mode :" + str(e))
             self.changingoperationalmode = False
 
     def parseonlineSiteInfo(self, device):
@@ -804,7 +803,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error Getting Online Site Info : " + repr(e))
-            self.logger.debug("Error Getting Online Site Info" + str(e.message))
+            self.logger.debug("Error Getting Online Site Info" + str(e))
             self.changingoperationalmode = False
 
 
@@ -864,7 +863,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error change Operatonal Mode : " + repr(e))
-            self.logger.debug("Error change Operation Mode :" + str(e.message))
+            self.logger.debug("Error change Operation Mode :" + str(e))
             self.changingoperationalmode = False
 
     def revokeToken(self):
@@ -892,7 +891,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error getsiteInfo Operation : " + repr(e))
-            self.logger.debug("Error getsiteInfo Operation" + str(e.message))
+            self.logger.debug("Error getsiteInfo Operation" + str(e))
 
     def getsiteInfo(self, localtoken):
 
@@ -924,7 +923,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error getsiteInfo Operation : " + repr(e))
-            self.logger.debug("Error getsiteInfo Operation" + str(e.message))
+            self.logger.debug("Error getsiteInfo Operation" + str(e))
 
     def setsitemasterRun(self):
 
@@ -955,7 +954,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
-            self.logger.debug("Error setting Operation" + str(e.message))
+            self.logger.debug("Error setting Operation" + str(e))
 
 
     def setconfigCompleted(self):
@@ -983,7 +982,7 @@ class Plugin(indigo.PluginBase):
 
         except Exception as e:
             self.logger.exception("Error setconfigComplete Operation : " + repr(e))
-            self.logger.debug("Error setting Operation" + str(e.message))
+            self.logger.debug("Error setting Operation" + str(e))
             self.connected = False
 
     def sendcommand(self, cmd):
@@ -1056,7 +1055,7 @@ class Plugin(indigo.PluginBase):
 
         except IOError as ex:
             self.logger.debug(u'sendCommand has timed out and cannot connect to Gateway.')
-            self.logger.debug(u'Error:'+str(ex)+":"+str(ex.message))
+            self.logger.debug(u'Error:'+str(ex))
             self.sleep(5)
             self.sessionData =""
             return 'Offline'
