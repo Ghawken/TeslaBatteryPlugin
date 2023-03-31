@@ -616,7 +616,10 @@ class Plugin(indigo.PluginBase):
         try:
             url = "https://owner-api.teslamotors.com/api/1/energy_sites/"+str(self.energysiteid)+"/site_info"
 
-            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
+            headers = {'Authorization': 'Bearer ' + str(self.pairingToken),
+                       'User-Agent': "IndigoDomo"}
+
+
             self.logger.debug( "Calling " + str(url) + " with headers:" + str(headers) )
             r = requests.get(url=url, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
@@ -899,27 +902,18 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'getsiteInfo - Called:' )
 
         try:
-            url = "https://owner-api.teslamotors.com/api/1/products"
-            headers = {'Authorization': 'Bearer ' + str(self.pairingToken)}
 
-            self.logger.debug("Calling " + str(url) + " with headers:" + str(headers) )
+            product_list = self.tesla.product_list()
+            self.logger.debug(f"self.telsa Product List {product_list}")
 
-            r = requests.get(url=url, timeout=15, headers=headers, verify=False)
-
-            if r.status_code == 200:
-                self.logger.debug(str(r.text))
-                jsonResponse = r.json()
-                if 'response' in jsonResponse:
-                    for results in jsonResponse['response']:
-                        if 'energy_site_id' in results:
-                            self.energysiteid = results['energy_site_id']
-                            self.logger.debug("Energy Site ID:"+str(self.energysiteid))
-                            return self.energysiteid
+            if 'energy_site_id' in product_list[0]:
+                self.energysiteid = product_list[0]['energy_site_id']
+                self.logger.debug("Energy Site ID:" + str(self.energysiteid))
+                return self.energysiteid
             else:
-                self.logger.error("getSiteInfo Error:"+str(r.text)+" and return code:"+str(r.status_code))
-                self.logger.error(str(r.text))
                 self.energysiteid =""
                 return ""
+
 
         except Exception as e:
             self.logger.exception("Error getsiteInfo Operation : " + repr(e))

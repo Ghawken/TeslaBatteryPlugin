@@ -355,6 +355,9 @@ class Tesla(OAuth2Session):
         return [Battery(p, self) for p in self.api('PRODUCT_LIST')['response']
                 if p.get('resource_type') == 'battery']
 
+    def product_list(self):
+        return self.api('PRODUCT_LIST')['response']
+
     def solar_list(self):
         """ Returns a list of `SolarPanel` objects """
         return [SolarPanel(p, self) for p in self.api('PRODUCT_LIST')['response']
