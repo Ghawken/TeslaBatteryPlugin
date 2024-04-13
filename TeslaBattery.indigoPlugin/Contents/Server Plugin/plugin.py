@@ -75,14 +75,18 @@ class Plugin(indigo.PluginBase):
         self.pluginIsShuttingDown = False
         self.prefsUpdated = False
         self.logger.info(u"")
-        self.logger.info(u"{0:=^130}".format(" Initializing New Plugin Session "))
-        self.logger.info(u"{0:<30} {1}".format("Plugin name:", pluginDisplayName))
-        self.logger.info(u"{0:<30} {1}".format("Plugin version:", pluginVersion))
-        self.logger.info(u"{0:<30} {1}".format("Plugin ID:", pluginId))
-        self.logger.info(u"{0:<30} {1}".format("Indigo version:", indigo.server.version))
-        self.logger.info(u"{0:<30} {1}".format("Python version:", sys.version.replace('\n', '')))
-        self.logger.info(u"{0:<31} {1}".format("Mac OS Version:", platform.mac_ver()[0]))
-        self.logger.info(u"{0:<31} {1}".format("Process ID:", os.getpid() ))
+        system_version, product_version, longer_name = self.get_macos_version()
+        self.logger.info("{0:=^130}".format(f" Initializing New Plugin Session for Plugin: {pluginDisplayName} "))
+        self.logger.info("{0:<30} {1}".format("Plugin name:", pluginDisplayName))
+        self.logger.info("{0:<30} {1}".format("Plugin version:", pluginVersion))
+        self.logger.info("{0:<30} {1}".format("Plugin ID:", pluginId))
+        self.logger.info("{0:<30} {1}".format("Indigo version:", indigo.server.version) )
+        self.logger.info("{0:<30} {1}".format("System version:", f"{system_version} {longer_name}" ))
+        self.logger.info("{0:<30} {1}".format("Product version:", product_version))
+        self.logger.info("{0:<30} {1}".format("Silicon version:", str(platform.machine()) ))
+        self.logger.info("{0:<30} {1}".format("TeslaPy Library version:", str(teslapy.__version__)))
+        self.logger.info("{0:<30} {1}".format("Python version:", sys.version.replace('\n', '')))
+        self.logger.info("{0:<30} {1}".format("Python Directory:", sys.prefix.replace('\n', '')))
 
         self.logger.info(u"{0:=^130}".format(""))
 
@@ -139,7 +143,50 @@ class Plugin(indigo.PluginBase):
         self.tesla = None
 
 
+    def get_macos_version(self):
+        try:
+            version, _, _ = platform.mac_ver()
+            longer_version = platform.platform()
+            self.logger.info(f"{version}")
+            longer_name = self.get_macos_marketing_name(version)
+            return version, longer_version, longer_name
+        except:
+            self.logger.debug("Exception:",exc_info=True)
+            return "","",""
 
+    def get_macos_marketing_name(self, version: str) -> str:
+        """Return the marketing name for a given macOS version number."""
+        versions = {
+            "10.0": "Cheetah",
+            "10.1": "Puma",
+            "10.2": "Jaguar",
+            "10.3": "Panther",
+            "10.4": "Tiger",
+            "10.5": "Leopard",
+            "10.6": "Snow Leopard",
+            "10.7": "Lion",
+            "10.8": "Mountain Lion",
+            "10.9": "Mavericks",
+            "10.10": "Yosemite",
+            "10.11": "El Capitan",
+            "10.12": "Sierra",
+            "10.13": "High Sierra",
+            "10.14": "Mojave",
+            "10.15": "Catalina",
+            "11": "Big Sur",  # Just use the major version number for macOS 11+
+            "12": "Monterey",
+            "13": "Ventura",
+            "14": "Sonoma",
+        }
+        major_version_parts = version.split(".")
+        # If the version is "11" or later, use only the first number as the key
+        if int(major_version_parts[0]) >= 11:
+            major_version = major_version_parts[0]
+        # For macOS "10.x" versions, use the first two numbers as the key
+        else:
+            major_version = ".".join(major_version_parts[:2])
+        self.logger.debug(f"Major Version== {major_version}")
+        return versions.get(major_version, f"Unknown macOS version for {version}")
 
     def __del__(self):
         self.debugLog(u"__del__ method called.")
@@ -903,7 +950,7 @@ class Plugin(indigo.PluginBase):
 
         try:
 
-            product_list = self.tesla.product_list()
+            product_list = self.tesla.battery_list()
             self.logger.debug(f"self.telsa Product List {product_list}")
 
             if 'energy_site_id' in product_list[0]:
