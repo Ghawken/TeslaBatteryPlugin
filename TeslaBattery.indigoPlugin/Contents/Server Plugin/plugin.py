@@ -261,15 +261,23 @@ class Plugin(indigo.PluginBase):
         try:
             while self.pluginIsShuttingDown == False:
                 self.prefsUpdated = False
+
                 # Initialize all timers
                 updateMeters = t.time() + 5
                 updateGrid = t.time() + 10
                 updateGridFaults = t.time() + 55
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
-                updateOnlineSite = t.time() + 30
-                updateBattRemaining = t.time() + 40  # Slightly after online site update
-                lastGridConnected = getattr(self, 'gridConnected', True)  # Track grid status changes
+
+                # Priority online site check on startup or when grid down
+                if (not hasattr(self, 'energysiteid') or self.energysiteid == "" or self.energysiteid is None or
+                        (hasattr(self, 'gridConnected') and self.gridConnected == False)):
+                    updateOnlineSite = t.time() + 5  # Get site ID immediately
+                else:
+                    updateOnlineSite = t.time() + 30
+
+                updateBattRemaining = t.time() + 40
+                lastGridConnected = getattr(self, 'gridConnected', True)
 
                 while self.prefsUpdated ==  False and self.pluginIsShuttingDown == False:
 
@@ -300,12 +308,16 @@ class Plugin(indigo.PluginBase):
                     if t.time() > updateBatt:
                         for dev in indigo.devices.itervalues('self.teslaBattery'):
                             self.updateBattery(dev)
-                            self.sleep(5)
                         updateBatt = t.time() + 60
 
+                    # Check if grid status changed
                     if hasattr(self, 'gridConnected') and self.gridConnected != lastGridConnected:
-                        updateOnlineSite = t.time() + 5  # Update soon after grid status change
-                        updateBattRemaining = t.time() + 10
+                        if self.gridConnected == False:
+                            # Grid went down - only prioritize if site ID missing
+                            if not hasattr(self,
+                                           'energysiteid') or self.energysiteid == "" or self.energysiteid is None:
+                                updateOnlineSite = t.time() + 2
+                        updateBattRemaining = t.time() + 5
                         lastGridConnected = self.gridConnected
 
                     # Update online site info first (needed for battery remaining)
