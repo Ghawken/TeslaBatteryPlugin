@@ -46,11 +46,9 @@ except:
     pass
 
 __author__ = "GlennNZ"
-__build__ = "Unused"
-__copyright__ = "Copyright 2017-2019 GlennNZ"
-__license__ = "MIT"
+__copyright__ = "Copyright 2017-2025 GlennNZ"
 __title__ = "TeslaBattery IndigoPlugin"
-__version__ = "0.3.9"
+
 
 
 # Establish default plugin prefs; create them if they don't already exist.
@@ -126,6 +124,9 @@ class Plugin(indigo.PluginBase):
         self.pairingTokencreated_at = int(0)
         self.pairingTokenrefresh_token = ""
 
+        self.GridConnected = True ## Setup for Grid Connection
+        self.energysiteid = None
+
         if 'Tesla Battery Gateway' not in indigo.devices.folders:
             indigo.devices.folder.create('Tesla Battery Gateway')
         self.folderId = indigo.devices.folders['Tesla Battery Gateway'].id
@@ -177,6 +178,7 @@ class Plugin(indigo.PluginBase):
             "12": "Monterey",
             "13": "Ventura",
             "14": "Sonoma",
+            "15": "Sequoia"
         }
         major_version_parts = version.split(".")
         # If the version is "11" or later, use only the first number as the key
@@ -259,15 +261,17 @@ class Plugin(indigo.PluginBase):
         try:
             while self.pluginIsShuttingDown == False:
                 self.prefsUpdated = False
-                self.sleep(0.5)
-                updateMeters = t.time() +5
+                # Initialize all timers
+                updateMeters = t.time() + 5
                 updateGrid = t.time() + 10
                 updateGridFaults = t.time() + 55
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
-                updateOnlineSite = t.time()+30
+                updateOnlineSite = t.time() + 30
+                updateBattRemaining = t.time() + 40  # Slightly after online site update
+                lastGridConnected = getattr(self, 'gridConnected', True)  # Track grid status changes
 
-                while self.prefsUpdated ==  False:
+                while self.prefsUpdated ==  False and self.pluginIsShuttingDown == False:
 
                     if t.time() > updateMeters:
                         for dev in indigo.devices.itervalues('self.teslaMeters'):
@@ -287,6 +291,7 @@ class Plugin(indigo.PluginBase):
                     if t.time() > updateSite:
                         for dev in indigo.devices.itervalues('self.teslaSite'):
                             self.updateSiteInfo(dev)
+
                             # This can take up to 10 second to return
                             # Hangs the whole plugin - could thread it - but no worth the bother
                             #self.updateSitemaster(dev)
@@ -295,10 +300,32 @@ class Plugin(indigo.PluginBase):
                     if t.time() > updateBatt:
                         for dev in indigo.devices.itervalues('self.teslaBattery'):
                             self.updateBattery(dev)
-                            if t.time() > updateOnlineSite and self.allowOnline:
-                                self.parseonlineSiteInfo(dev)
-                                updateOnlineSite = updateOnlineSite + 600
+                            self.sleep(5)
                         updateBatt = t.time() + 60
+
+                    if hasattr(self, 'gridConnected') and self.gridConnected != lastGridConnected:
+                        updateOnlineSite = t.time() + 5  # Update soon after grid status change
+                        updateBattRemaining = t.time() + 10
+                        lastGridConnected = self.gridConnected
+
+                    # Update online site info first (needed for battery remaining)
+                    if t.time() > updateOnlineSite and self.allowOnline:
+                        if not hasattr(self, 'energysiteid') or self.energysiteid == "" or self.energysiteid is None:
+                            for dev in indigo.devices.itervalues('self.teslaBattery'):
+                                self.parseonlineSiteInfo(dev)
+                            updateOnlineSite = t.time() + 60  # Check again in 1 minute if failed
+                        else:
+                            updateOnlineSite = t.time() + 3600  # Check again in 1 hour if we have ID
+
+                    # Update battery remaining after online site info
+                    if t.time() > updateBattRemaining and self.allowOnline:
+                        for dev in indigo.devices.itervalues('self.teslaBattery'):
+                            result = self.get_batteryRemaining(dev)
+                        # Set next update interval based on grid status
+                        if hasattr(self, 'gridConnected') and self.gridConnected == False:
+                            updateBattRemaining = t.time() + 20  # Every 20 seconds when offline
+                        else:
+                            updateBattRemaining = t.time() + 600  # Every 10 minutes when online
 
                     self.sleep(1)
 
@@ -314,6 +341,55 @@ class Plugin(indigo.PluginBase):
         if meters is not None and meters !='Offline':
             self.fillmetersinfo(meters, dev)
         return
+
+    def format_time_remaining(self, hours):
+        """Convert decimal hours to hours and minutes format"""
+        if hours is None:
+            return "Unknown"
+
+        try:
+            total_minutes = int(hours * 60)
+            hours_part = total_minutes // 60
+            minutes_part = total_minutes % 60
+
+            if hours_part > 0:
+                return f"{hours_part}h {minutes_part}m"
+            else:
+                return f"{minutes_part}m"
+        except (ValueError, TypeError, OverflowError):
+            # Return the original hours value as string if formatting fails
+            return str(hours)
+
+    def get_batteryRemaining(self, dev):
+        if self.debugextra:
+            self.logger.debug(u'get_batteryRemaining Called')
+        if self.energysiteid == "" or self.energysiteid == None:
+            self.logger.debug("No Energy Site ID found.  Cannot get battery remaining time.")
+            return None
+        response = self.get_site_info_online_command('backup_time_remaining')
+        if isinstance(response, dict) and 'response' in response:
+            # Extract the nested response data
+            response_data = response['response']
+            if isinstance(response_data, dict) and 'time_remaining_hours' in response_data:
+                time_remaining = response_data['time_remaining_hours']
+                # Update both numeric and text states
+                stateList = [
+                    {'key': 'battery_backtimeRemaining', 'value': time_remaining},
+                    {'key': 'battery_remainingTimeText', 'value': self.format_time_remaining(time_remaining)}
+                ]
+                dev.updateStatesOnServer(stateList)
+                return time_remaining
+            else:
+                time_remaining = None
+        else:
+            # Handle the "Offline" case or invalid response
+            time_remaining = None
+            stateList = [
+                {'key': 'battery_remainingTimeText', 'value': "Unknown"}
+            ]
+            dev.updateStatesOnServer(stateList)
+
+        return time_remaining
 
     def updateGridStatus(self, dev):
         if self.debugextra:
@@ -584,9 +660,9 @@ class Plugin(indigo.PluginBase):
             return
 
         self.tesla = teslapy.Tesla(self.username)
-        self.logger.debug(f"{self.tesla.token}")
+        self.logger.debug(f"{self.tesla=}")
 
-        self.logger.debug("{}".format(self.tesla.token["access_token"]) )
+        self.logger.debug(f"{self.tesla.token=}")
 
         if not self.tesla.authorized:
             if "refreshToken" in self.pluginPrefs:
@@ -658,6 +734,28 @@ class Plugin(indigo.PluginBase):
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
             self.logger.debug("Exception setting Operation" + str(e))
             self.connected = False
+
+    def get_site_info_online_command(self, command):
+        try:
+            url = f"https://owner-api.teslamotors.com/api/1/energy_sites/{self.energysiteid}/{command}"
+            headers = {
+                'Authorization': f'Bearer {self.pairingToken}',
+                'User-Agent': "IndigoDomo"
+            }
+            self.logger.debug(f"Calling {url} with headers: {headers}")
+            r = requests.get(url=url, headers=headers, timeout=10, verify=False)
+            if r.status_code == 200:
+                self.logger.debug(str(r.text))
+                return r.json()
+            else:
+                self.logger.error(str(r.text))
+                return ""
+
+        except Exception as e:
+            self.logger.exception(f"Caught Exception setting Operation: {repr(e)}")
+            self.logger.debug(f"Exception setting Operation: {e}")
+            return ""
+
 
     def getsiteInfoOnline(self):
         try:
@@ -1029,14 +1127,8 @@ class Plugin(indigo.PluginBase):
     def sendcommand(self, cmd):
 
         if self.debugextra:
-            self.logger.debug(u'ThreadSendCOmmand called. Number of Active Threads:' + str(
+            self.logger.debug(u'ThreadSendCommand called. Number of Active Threads:' + str(
                     threading.activeCount()))
-
-        ## 1.20.0 Changes to https and SSL for Tesla Software
-        # Not backward compatible with others... annoyingly
-        # Use CURL to avoid dreaded SSL Error because of library issues
-        #  https://forums.indigodomo.com/viewtopic.php?f=107&t=20794
-        # curl can't timeout - attempt to use threading
 
         if self.changingoperationalmode:
             self.logger.debug("Changing Operational Mode pausing updating Powerwall")
@@ -1060,7 +1152,7 @@ class Plugin(indigo.PluginBase):
             if self.sessionData == "" or time.time() >=self.sessiontimeStamp:
                 self.logger.debug("Setting up New Token Session Data")
                 self.sessionReq = requests.Session()   ## renew session
-                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=30)
+                self.sessionData = self.sessionReq.post('https://' + self.serverip + '/api/login/Basic', headers=headers, data=data, verify=False, timeout=10)
                 if self.sessionData.status_code == 200:
                     self.logger.debug(str(self.sessionData.text))
                     jsonsessionData = json.loads(self.sessionData.text)
@@ -1343,16 +1435,19 @@ class Plugin(indigo.PluginBase):
 
             if data['grid_status'] == 'SystemGridConnected':
                 # Grid must be restored
+                self.gridConnected = True
                 if gridConnected ==False:
                     self.triggerCheck(device, 'gridRestored')
                     update_time = t.strftime('%c')
                     device.updateStateOnServer('timeGridUp', value=str(update_time))
                 device.updateStateOnServer('gridConnected', value=True)
             elif data['grid_status'] == 'SystemIslandedActive' :
+                self.gridConnected = False
                 if gridConnected == True:
                     self.triggerCheck(device, 'gridLoss')
                     update_time = t.strftime('%c')
                     device.updateStateOnServer('timeGridLoss', value=str(update_time))
+
                 device.updateStateOnServer('gridConnected', value=False)
 
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")

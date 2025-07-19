@@ -138,6 +138,17 @@
         <TriggerLabel>Battery Number</TriggerLabel>
         <ControlPageLabel>Battery Number</ControlPageLabel>
       </State>
+       <State id="battery_backtimeRemaining">
+        <ValueType>Number</ValueType>
+        <TriggerLabel>Backup Time Remaining (hrs)</TriggerLabel>
+        <ControlPageLabel>Backup Time Remaining (hrs)</ControlPageLabel>
+      </State>
+       battery_remainingTimeText
+              <State id="battery_remainingTimeText">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Backup Time Remaining (Text)</TriggerLabel>
+        <ControlPageLabel>Backup Time Remaining (Text)</ControlPageLabel>
+      </State>
    </States>
     <UiDisplayStateId>chargeCP</UiDisplayStateId>
   </Device>
