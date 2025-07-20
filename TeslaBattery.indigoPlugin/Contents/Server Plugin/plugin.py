@@ -261,7 +261,7 @@ class Plugin(indigo.PluginBase):
         try:
             while self.pluginIsShuttingDown == False:
                 self.prefsUpdated = False
-
+                self.getauthTokenOnline()
                 # Initialize all timers
                 updateMeters = t.time() + 5
                 updateGrid = t.time() + 10
@@ -378,6 +378,7 @@ class Plugin(indigo.PluginBase):
         if self.energysiteid == "" or self.energysiteid == None:
             self.logger.debug("No Energy Site ID found.  Cannot get battery remaining time.")
             return None
+
         response = self.get_site_info_online_command('backup_time_remaining')
         if isinstance(response, dict) and 'response' in response:
             # Extract the nested response data
@@ -668,7 +669,7 @@ class Plugin(indigo.PluginBase):
         ####
 
         if self.allowOnline == False:
-            self.logger.info("Online access to Tesla disabled in Plugin Config.")
+            self.logger.debug("Online access to Tesla disabled in Plugin Config.  If online features are required,  please enabled in Plugin Config page")
             return
 
         self.tesla = teslapy.Tesla(self.username)
@@ -738,6 +739,7 @@ class Plugin(indigo.PluginBase):
                         self.logger.error(str("Did not change mode correctly!!"))
                         return False
                     return True
+
             else:
                 self.logger.error(str(r.text))
                 return False
@@ -749,6 +751,8 @@ class Plugin(indigo.PluginBase):
 
     def get_site_info_online_command(self, command):
         try:
+            self.getauthTokenOnline()  ## Update Token if needed!
+
             url = f"https://owner-api.teslamotors.com/api/1/energy_sites/{self.energysiteid}/{command}"
             headers = {
                 'Authorization': f'Bearer {self.pairingToken}',
@@ -759,8 +763,24 @@ class Plugin(indigo.PluginBase):
             if r.status_code == 200:
                 self.logger.debug(str(r.text))
                 return r.json()
+            elif r.status_code == 401:
+                self.logger.info("401 Unauthorized - refreshing auth token")
+                self.getauthTokenOnline()
+                self.sleep(3)
+                # Retry the same request
+                try:
+                    r = requests.get(url, headers=headers, timeout=10)
+                    if r.status_code == 200:
+                        self.logger.debug(str(r.text))
+                        return r.json()
+                    else:
+                        self.logger.info(f"Retry failed with status {r.status_code}: {str(r.text)}")
+                        return ""
+                except Exception as e:
+                    self.logger.info(f"Retry request failed: {str(e)}")
+                    return ""
             else:
-                self.logger.error(str(r.text))
+                self.logger.info(f"Error fetching site info: {r.status_code} - {r.text}")
                 return ""
 
         except Exception as e:
