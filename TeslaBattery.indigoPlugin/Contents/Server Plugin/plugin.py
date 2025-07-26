@@ -764,10 +764,16 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(str(r.text))
                 return r.json()
             elif r.status_code == 401:
-                self.logger.info("401 Unauthorized - refreshing auth token")
+                self.logger.debug("401 Unauthorized - refreshing auth token")
                 self.getauthTokenOnline()
-                self.sleep(3)
+                self.sleep(5)
                 # Retry the same request
+                ## Update the token idiot!
+                url = f"https://owner-api.teslamotors.com/api/1/energy_sites/{self.energysiteid}/{command}"
+                headers = {
+                    'Authorization': f'Bearer {self.pairingToken}',
+                    'User-Agent': "IndigoDomo"
+                }
                 try:
                     r = requests.get(url, headers=headers, timeout=10)
                     if r.status_code == 200:
