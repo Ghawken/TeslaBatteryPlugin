@@ -502,8 +502,8 @@ class Plugin(indigo.PluginBase):
         resolver = TariffResolver(self.tesla_tarriff_rate)
         period, rate = resolver.current_tariff()
         stateList = [
-            {'key': 'current_tarriff_price', 'value': f"{period}" },
-            {'key': 'current_tarriff_name', 'value': f"{rate}"}
+            {'key': 'current_tarriff_price', 'value': f"{rate}" },
+            {'key': 'current_tarriff_name', 'value': f"{period}"}
         ]
         dev.updateStatesOnServer(stateList)
 
@@ -518,7 +518,7 @@ class Plugin(indigo.PluginBase):
         response = self.get_site_info_online_command('tariff_rate')
         if isinstance(response, dict) and 'response' in response:
             # Extract the nested response data
-            self.logger.error(f"{response}")
+            #self.logger.error(f"{response}")
             self.tesla_tarriff_rate = response["response"]
             resolver = TariffResolver(self.tesla_tarriff_rate)
             self.logger.debug(f"Current Tarrif: {resolver.current_tariff()}")
