@@ -75,6 +75,16 @@
         <TriggerLabel>Utility Provider</TriggerLabel>
         <ControlPageLabel>Utility Provier</ControlPageLabel>
       </State>
+                  <State id="current_tarriff_name">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Current Tarriff Rate Name</TriggerLabel>
+        <ControlPageLabel>Current Tarriff Rate Name</ControlPageLabel>
+      </State>
+       <State id="current_tarriff_price">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Current Tarriff Rate Price</TriggerLabel>
+        <ControlPageLabel>Current Tarriff Rate Price</ControlPageLabel>
+      </State>
                   <State id="distributor">
         <ValueType>String</ValueType>
         <TriggerLabel>Utility Distributor</TriggerLabel>

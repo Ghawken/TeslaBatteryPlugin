@@ -64,6 +64,116 @@ kDefaultPluginPrefs = {
     u'updaterEmailsEnabled': False  # Notification of plugin updates wanted.
 }
 
+import json, ast
+
+## Class to calculate current Tariff from Tesla Tariff Blob
+
+class TariffResolver:
+    """
+    Work out the current TOU period and rate from a Tesla tariff dict.
+
+    Parameters
+    ----------
+    tariff : dict
+        The *inner* Tesla response, e.g. api_reply["response"].
+    """
+
+    # ------------------------------------------------------------------ #
+    # Initialisation
+    # ------------------------------------------------------------------ #
+    def __init__(self, tariff: dict):
+        if not isinstance(tariff, dict):
+            raise TypeError("TariffResolver expects a dict (not a string)")
+
+        # Normalise structure we care about
+        try:
+            self.seasons        = tariff["seasons"]
+            self.energy_charges = tariff["energy_charges"]
+        except KeyError as err:
+            raise ValueError(f"Missing key in tariff dict: {err}") from err
+
+    # ------------------------------------------------------------------ #
+    # Public helper
+    # ------------------------------------------------------------------ #
+    def current_tariff(self):
+        """
+        Returns
+        -------
+        (str, float)
+            Tuple of `(period_name, rate)` for the host’s local clock
+            — or `(None, None)` if anything cannot be resolved.
+        """
+        try:
+            now     = datetime.datetime.now()       # local time
+            season  = self._season_for_date(now.date())
+            period  = self._period_for_time(season, now)
+            rate    = self._rate_for_period(season, period)
+            return period, rate
+        except Exception:
+            return None, None
+
+    # ------------------------------------------------------------------ #
+    # Internal helpers
+    # ------------------------------------------------------------------ #
+    # 1. Season --------------------------------------------------------- #
+    def _season_for_date(self, today):
+        for name, window in self.seasons.items():
+            if self._date_in_window(today, window):
+                return name
+        return "ALL"
+
+    @staticmethod
+    def _date_in_window(d, w):
+        sm, em = w["fromMonth"], w["toMonth"]
+        sd, ed = w["fromDay"],   w["toDay"]
+
+        crosses = sm > em
+        start_y = d.year if (not crosses or d.month >= sm) else d.year - 1
+        end_y   = start_y if not crosses else start_y + 1
+
+        return (datetime.date(start_y, sm, sd)
+                <= d
+                <= datetime.date(end_y, em, ed))
+
+    # 2. TOU period ----------------------------------------------------- #
+    def _period_for_time(self, season, now):
+        season_obj = self.seasons[season]
+        tou = season_obj.get("tou_periods")
+        if not tou:
+            return "ALL"
+
+        wd  = now.weekday()                      # 0=Mon … 6=Sun
+        mins = now.hour * 60 + now.minute
+
+        for name, ranges in tou.items():
+            for r in ranges:
+                if self._time_in_range(wd, mins, r):
+                    return name
+        return "ALL"
+
+    @staticmethod
+    def _time_in_range(dow, mins, r):
+        if not (r["fromDayOfWeek"] <= dow <= r["toDayOfWeek"]):
+            return False
+
+        start = r["fromHour"] * 60 + r["fromMinute"]
+        end   = r["toHour"]   * 60 + r["toMinute"]
+
+        if start == end == 0:             # 00:00‑00:00 → whole day
+            return True
+        if start < end:                   # same‑day window
+            return start <= mins < end
+        else:                             # crosses midnight
+            return mins >= start or mins < end
+
+    # 3. Rate lookup ---------------------------------------------------- #
+    def _rate_for_period(self, season, period):
+        return (
+            self.energy_charges.get(season, {}).get(period) or
+            self.energy_charges.get("ALL", {}).get(period)
+        )
+
+
 
 class Plugin(indigo.PluginBase):
     def __init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs):
@@ -123,6 +233,8 @@ class Plugin(indigo.PluginBase):
         self.pairingTokenexpires_in = int(0)
         self.pairingTokencreated_at = int(0)
         self.pairingTokenrefresh_token = ""
+
+        self.tesla_tarriff_rate = ""
 
         self.GridConnected = True ## Setup for Grid Connection
         self.energysiteid = None
@@ -268,6 +380,7 @@ class Plugin(indigo.PluginBase):
                 updateGridFaults = t.time() + 55
                 updateSite = t.time() + 30
                 updateBatt = t.time() + 35
+                updateTariff = t.time() + 5
 
                 # Priority online site check on startup or when grid down
                 if (not hasattr(self, 'energysiteid') or self.energysiteid == "" or self.energysiteid is None or
@@ -325,6 +438,7 @@ class Plugin(indigo.PluginBase):
                         if not hasattr(self, 'energysiteid') or self.energysiteid == "" or self.energysiteid is None:
                             for dev in indigo.devices.itervalues('self.teslaBattery'):
                                 self.parseonlineSiteInfo(dev)
+                            self.get_tariff_rates_online(dev)
                             updateOnlineSite = t.time() + 60  # Check again in 1 minute if failed
                         else:
                             updateOnlineSite = t.time() + 3600  # Check again in 1 hour if we have ID
@@ -338,6 +452,11 @@ class Plugin(indigo.PluginBase):
                             updateBattRemaining = t.time() + 20  # Every 20 seconds when offline
                         else:
                             updateBattRemaining = t.time() + 600  # Every 10 minutes when online
+
+                    if t.time() > updateTariff and self.allowOnline:
+                        for dev in indigo.devices.itervalues('self.teslaSite'):
+                            self.get_current_tarrif_rate(dev)
+                        updateTariff = t.time() + 60
 
                     self.sleep(1)
 
@@ -371,6 +490,41 @@ class Plugin(indigo.PluginBase):
         except (ValueError, TypeError, OverflowError):
             # Return the original hours value as string if formatting fails
             return str(hours)
+
+    def get_current_tarrif_rate(self, dev):
+        if self.debugextra:
+            self.logger.debug(u'get_current_tarrif_rate called')
+
+        if self.tesla_tarriff_rate is None or self.tesla_tarriff_rate == "":
+            self.logger.debug("No Tariff Rate found.  Cannot get current tariff rate.")
+            return None
+
+        resolver = TariffResolver(self.tesla_tarriff_rate)
+        period, rate = resolver.current_tariff()
+        stateList = [
+            {'key': 'current_tarriff_price', 'value': f"{period}" },
+            {'key': 'current_tarriff_name', 'value': f"{rate}"}
+        ]
+        dev.updateStatesOnServer(stateList)
+
+
+    def get_tariff_rates_online(self, dev):
+        if self.debugextra:
+            self.logger.debug(u'get_batteryRemaining Called')
+        if self.energysiteid == "" or self.energysiteid == None:
+            self.logger.debug("No Energy Site ID found.  Cannot get battery remaining time.")
+            return None
+
+        response = self.get_site_info_online_command('tariff_rate')
+        if isinstance(response, dict) and 'response' in response:
+            # Extract the nested response data
+            self.logger.error(f"{response}")
+            self.tesla_tarriff_rate = response["response"]
+            resolver = TariffResolver(self.tesla_tarriff_rate)
+            self.logger.debug(f"Current Tarrif: {resolver.current_tariff()}")
+
+        return
+
 
     def get_batteryRemaining(self, dev):
         if self.debugextra:
@@ -677,25 +831,27 @@ class Plugin(indigo.PluginBase):
 
         self.logger.debug(f"{self.tesla.token=}")
 
-        if not self.tesla.authorized:
-            if "refreshToken" in self.pluginPrefs:
-                if self.pluginPrefs["refreshToken"] != None:
-                    if len(self.pluginPrefs["refreshToken"]) >5:
-                        self.tesla.refresh_token(refresh_token=self.pluginPrefs['refreshToken'])
-                    else:
-                        self.logger.info("To use online features please enter Refresh Token in Plugin Config Screen.")
-                        self.pluginPrefs["allowOnline"] = False
-                        return
-            else:
-                self.logger.info("To use online features please enter Refresh Token.")
-                self.pluginPrefs["allowOnline"] = False
-                return
-
-            self.pairingToken = self.tesla.token["access_token"]
-            self.logger.debug(f"{self.tesla.token}")
-            self.logger.debug(f"{self.tesla.battery_list()}")
+        #if not self.tesla.authorized:
+        if "refreshToken" in self.pluginPrefs:
+            if self.pluginPrefs["refreshToken"] != None:
+                if len(self.pluginPrefs["refreshToken"]) >5:
+                    self.tesla.refresh_token(refresh_token=self.pluginPrefs['refreshToken'], timeout=10)
+                else:
+                    self.logger.info("To use online features please enter Refresh Token in Plugin Config Screen.")
+                    self.pluginPrefs["allowOnline"] = False
+                    return
+        else:
+            self.logger.info("To use online features please enter Refresh Token.")
+            self.pluginPrefs["allowOnline"] = False
             return
 
+        self.pairingToken = self.tesla.token["access_token"]
+        self.logger.debug(f"{self.tesla.token}")
+        self.logger.debug(f"{self.tesla.battery_list()}")
+        return
+       # else:
+       #     self.logger.debug("Already Authorized with Tesla")
+        # If we get here, we have a valid token
         self.pairingToken = self.tesla.token["access_token"]
 
     def changeOperation(self, mode, reservepercentage):
@@ -802,16 +958,37 @@ class Plugin(indigo.PluginBase):
             headers = {'Authorization': 'Bearer ' + str(self.pairingToken),
                        'User-Agent': "IndigoDomo"}
 
-
             self.logger.debug( "Calling " + str(url) + " with headers:" + str(headers) )
             r = requests.get(url=url, headers=headers, timeout=10, verify=False)
             if r.status_code == 200:
                 self.logger.debug(str(r.text))
                 return r.json()
+            elif r.status_code == 401:
+                self.logger.debug("401 Unauthorized - refreshing auth token")
+                self.getauthTokenOnline()
+                self.sleep(5)
+                # Retry the same request
+                ## Update the token idiot!
+                url = f"https://owner-api.teslamotors.com/api/1/energy_sites/{self.energysiteid}/site_info"
+                headers = {
+                    'Authorization': f'Bearer {self.pairingToken}',
+                    'User-Agent': "IndigoDomo"
+                }
+                try:
+                    r = requests.get(url, headers=headers, timeout=10)
+                    if r.status_code == 200:
+                        self.logger.debug(str(r.text))
+                        return r.json()
+                    else:
+                        self.logger.info(f"Retry failed with status {r.status_code}: {str(r.text)}")
+                        return ""
+                except Exception as e:
+                    self.logger.info(f"Retry request failed: {str(e)}")
+                    return ""
             else:
-                self.logger.error(str(r.text))
+                self.logger.info(f"Error fetching site info: {r.status_code} - {r.text}")
                 return ""
-            ##  Now update battery reserve percentage
+
         except Exception as e:
             self.logger.exception("Caught Exception setting Operation : " + repr(e))
             self.logger.debug("Exception setting Operation" + str(e))
