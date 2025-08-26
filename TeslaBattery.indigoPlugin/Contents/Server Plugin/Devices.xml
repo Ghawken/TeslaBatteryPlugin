@@ -233,7 +233,7 @@
         <TriggerLabel>Battery Dischariging?</TriggerLabel>
         <ControlPageLabel>Battery Discharging?</ControlPageLabel>
       </State>
-              <State id="batteryState">
+       <State id="batteryState">
         <ValueType>String</ValueType>
         <TriggerLabel>Battery State (idle, charging, discharing)</TriggerLabel>
         <ControlPageLabel>Battery State (idle, charging, discharing)</ControlPageLabel>

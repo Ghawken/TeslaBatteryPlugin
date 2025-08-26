@@ -1611,11 +1611,11 @@ class Plugin(indigo.PluginBase):
                 batteryState = "charging"
                 batteryState_combined = f"charging_{self.battery_percent_charged_int}"
             else:
-                batteryState == "idle"
+                batteryState = "idle"
                 batteryState_combined = f"idle_{self.battery_percent_charged_int}"
 
-            device.updateStatesOnServer('batteryState', value=batteryState)
-            device.updateStateOnServer('batteryState_combined', value=batteryState_combined)
+            device.updateStatesOnServer('batteryState', value=f"{batteryState}")
+            device.updateStateOnServer('batteryState_combined', value=f"{batteryState_combined}")
 
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
             device.updateStateOnServer('deviceStatus', value='Online')
