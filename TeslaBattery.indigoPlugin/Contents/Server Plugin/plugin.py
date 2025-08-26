@@ -1551,6 +1551,7 @@ class Plugin(indigo.PluginBase):
             batteryCharging = device.states['batteryCharging']
             batteryDischarging = device.states['batteryDischarging']
             sendingtoGrid = device.states['sendingtoGrid']
+            batteryState = "idle"
 
             try:
                 #Grid Usage is essentially the summary
@@ -1570,8 +1571,10 @@ class Plugin(indigo.PluginBase):
                     if batteryCharging ==False:
                         self.triggerCheck(device, 'batteryCharging')
                     device.updateStateOnServer('batteryCharging', value=True)
+                    batteryCharging = True  ## update to use later.
                 else:
                     device.updateStateOnServer('batteryCharging', value=False)
+                    batteryCharging = False
 
                 if float(solar_instant_power) > 95:
                     # Solar Generating more than 150 watts
@@ -1588,16 +1591,26 @@ class Plugin(indigo.PluginBase):
                     device.updateStateOnServer('sendingtoGrid', value=False)
 
                 if float(battery_instant_power) > 150:
-                    # Solar Generating more than 150 watts
+                    # more than 150 watts
                     if batteryDischarging==False:
                         self.triggerCheck(device, 'batteryDischarging')
                     device.updateStateOnServer('batteryDischarging', value=True)
-
+                    batteryDischarging = True
                 else:
                     device.updateStateOnServer('batteryDischarging', value=False)
+                    batteryDischarging = False
             except:
                 self.logger.info(u'Error in Calculation')
                 pass
+
+            if batteryDischarging == True:
+                batteryState = "discharging"
+            elif batteryCharging == True:
+                batteryState = "charging"
+            else:
+                batteryState == "idle"
+
+            device.updateStatesOnServer('batteryState', value=batteryState)
 
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
             device.updateStateOnServer('deviceStatus', value='Online')

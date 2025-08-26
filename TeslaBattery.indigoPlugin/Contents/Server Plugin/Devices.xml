@@ -233,6 +233,11 @@
         <TriggerLabel>Battery Dischariging?</TriggerLabel>
         <ControlPageLabel>Battery Discharging?</ControlPageLabel>
       </State>
+              <State id="batteryState">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Battery State (idle, charging, discharing)</TriggerLabel>
+        <ControlPageLabel>Battery State (idle, charging, discharing)</ControlPageLabel>
+      </State>
        <State id="solarGenerating">
         <ValueType>Boolean</ValueType>
         <TriggerLabel>Solar Generating Power?</TriggerLabel>
