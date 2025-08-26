@@ -238,6 +238,11 @@
         <TriggerLabel>Battery State (idle, charging, discharing)</TriggerLabel>
         <ControlPageLabel>Battery State (idle, charging, discharing)</ControlPageLabel>
       </State>
+       <State id="batteryState_combined">
+        <ValueType>String</ValueType>
+        <TriggerLabel>Battery State Combined (idle_percent, charging_percent, discharging_percent)</TriggerLabel>
+        <ControlPageLabel>Battery State Combined (idle_percent, charging_percent, discharging_percent)</ControlPageLabel>
+      </State>
        <State id="solarGenerating">
         <ValueType>Boolean</ValueType>
         <TriggerLabel>Solar Generating Power?</TriggerLabel>

@@ -236,6 +236,7 @@ class Plugin(indigo.PluginBase):
 
         self.tesla_tarriff_rate = ""
 
+        self.battery_percent_charged_int = 0
         self.GridConnected = True ## Setup for Grid Connection
         self.energysiteid = None
 
@@ -1605,12 +1606,16 @@ class Plugin(indigo.PluginBase):
 
             if batteryDischarging == True:
                 batteryState = "discharging"
+                batteryState_combined = f"discharging_{self.battery_percent_charged_int}"
             elif batteryCharging == True:
                 batteryState = "charging"
+                batteryState_combined = f"charging_{self.battery_percent_charged_int}"
             else:
                 batteryState == "idle"
+                batteryState_combined = f"idle_{self.battery_percent_charged_int}"
 
             device.updateStatesOnServer('batteryState', value=batteryState)
+            device.updateStateOnServer('batteryState_combined', value=batteryState_combined)
 
             device.updateStateOnServer('deviceIsOnline', value=True, uiValue="Online")
             device.updateStateOnServer('deviceStatus', value='Online')
@@ -1633,6 +1638,8 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u'Battery Per:'+str(percentage))
             device.updateStateOnServer('charge', percentage)
             device.updateStateOnServer('chargeCP', int(percentage))
+            self.battery_percent_charged_int = int(percentage)
+
             if percentage > 95:
                 device.updateStateImageOnServer(indigo.kStateImageSel.BatteryLevelHigh)
             elif percentage > 75:
