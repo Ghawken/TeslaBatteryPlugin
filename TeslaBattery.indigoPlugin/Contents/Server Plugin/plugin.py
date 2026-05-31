@@ -261,7 +261,7 @@ class Plugin(indigo.PluginBase):
         try:
             version, _, _ = platform.mac_ver()
             longer_version = platform.platform()
-            self.logger.info(f"{version}")
+            self.logger.debug(f"{version}")
             longer_name = self.get_macos_marketing_name(version)
             return version, longer_version, longer_name
         except:
@@ -439,7 +439,7 @@ class Plugin(indigo.PluginBase):
                         if not hasattr(self, 'energysiteid') or self.energysiteid == "" or self.energysiteid is None:
                             for dev in indigo.devices.itervalues('self.teslaBattery'):
                                 self.parseonlineSiteInfo(dev)
-                            self.get_tariff_rates_online(dev)
+                            self.get_tariff_rates_online()
                             updateOnlineSite = t.time() + 60  # Check again in 1 minute if failed
                         else:
                             updateOnlineSite = t.time() + 3600  # Check again in 1 hour if we have ID
@@ -500,8 +500,12 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("No Tariff Rate found.  Cannot get current tariff rate.")
             return None
 
-        resolver = TariffResolver(self.tesla_tarriff_rate)
-        period, rate = resolver.current_tariff()
+        try:
+            resolver = TariffResolver(self.tesla_tarriff_rate)
+            period, rate = resolver.current_tariff()
+        except (ValueError, TypeError) as e:
+            self.logger.debug(f"Could not parse tariff data: {e}")
+            return None
         stateList = [
             {'key': 'current_tarriff_price', 'value': f"{rate}" },
             {'key': 'current_tarriff_name', 'value': f"{period}"}
@@ -509,7 +513,7 @@ class Plugin(indigo.PluginBase):
         dev.updateStatesOnServer(stateList)
 
 
-    def get_tariff_rates_online(self, dev):
+    def get_tariff_rates_online(self, dev=None):
         if self.debugextra:
             self.logger.debug(u'get_batteryRemaining Called')
         if self.energysiteid == "" or self.energysiteid == None:
@@ -521,8 +525,11 @@ class Plugin(indigo.PluginBase):
             # Extract the nested response data
             #self.logger.error(f"{response}")
             self.tesla_tarriff_rate = response["response"]
-            resolver = TariffResolver(self.tesla_tarriff_rate)
-            self.logger.debug(f"Current Tarrif: {resolver.current_tariff()}")
+            try:
+                resolver = TariffResolver(self.tesla_tarriff_rate)
+                self.logger.debug(f"Current Tarrif: {resolver.current_tariff()}")
+            except (ValueError, TypeError) as e:
+                self.logger.debug(f"Could not parse tariff data: {e}")
 
         return
 
@@ -832,19 +839,19 @@ class Plugin(indigo.PluginBase):
 
         self.logger.debug(f"{self.tesla.token=}")
 
-        #if not self.tesla.authorized:
-        if "refreshToken" in self.pluginPrefs:
-            if self.pluginPrefs["refreshToken"] != None:
-                if len(self.pluginPrefs["refreshToken"]) >5:
-                    self.tesla.refresh_token(refresh_token=self.pluginPrefs['refreshToken'], timeout=10)
-                else:
-                    self.logger.info("To use online features please enter Refresh Token in Plugin Config Screen.")
-                    self.pluginPrefs["allowOnline"] = False
-                    return
-        else:
-            self.logger.info("To use online features please enter Refresh Token.")
-            self.pluginPrefs["allowOnline"] = False
-            return
+        if not self.tesla.authorized:
+            if "refreshToken" in self.pluginPrefs:
+                if self.pluginPrefs["refreshToken"] != None:
+                    if len(self.pluginPrefs["refreshToken"]) > 5:
+                        self.tesla.refresh_token(refresh_token=self.pluginPrefs['refreshToken'], timeout=10)
+                    else:
+                        self.logger.info("To use online features please enter Refresh Token in Plugin Config Screen.")
+                        self.pluginPrefs["allowOnline"] = False
+                        return
+            else:
+                self.logger.info("To use online features please enter Refresh Token.")
+                self.pluginPrefs["allowOnline"] = False
+                return
 
         self.pairingToken = self.tesla.token["access_token"]
         self.logger.debug(f"{self.tesla.token}")
@@ -1190,7 +1197,6 @@ class Plugin(indigo.PluginBase):
                 ## need to get site info to know what to change..
                 if self.getsiteInfo(self.pairingToken) != "":
 
-                    self.getsiteInfoOnline()
                     if self.changeOperationOnline(mode, reserve, setreserve):  ## success do the rest
                         if setreserve:
                             self.logger.info(u'Successfully changed to mode:'+str(mode)+u" with backup reserve:"+str(reserve))
@@ -1218,10 +1224,7 @@ class Plugin(indigo.PluginBase):
                 self.pairingToken=""
 
             else:
-                self.logger.info("Failed to get Installer Pairing token.  .")
-                if 'authorization_required' in datareturned:
-                    self.logger.info("Check Username and Password.  Authenicated Fails for those Given")
-                    self.logger.info("Should be your online Tesla Account Username/Password as uses online API for control")
+                self.logger.info("Failed to get Installer Pairing token. Check username and refresh token in Plugin Config.")
             self.changingoperationalmode = False
             return
 
@@ -1357,7 +1360,7 @@ class Plugin(indigo.PluginBase):
         headers = { 'Content-Type': 'application/json', }
         # data = ' {"username":"customer", "password":'+str(self.batPassword)+', "email": "customer@customer.domain",
         #           "force_sm_off": false} '
-        data = '{"username":"customer","password":"'+str(self.batPassword)+'","email":"'+str(self.batUsername)+'","force_sm_off":false}'
+        data = json.dumps({"username": "customer", "password": str(self.batPassword), "email": str(self.batUsername), "force_sm_off": False})
 
        # self.logger.error(str(data))
         if self.serverip == '':
@@ -1625,7 +1628,7 @@ class Plugin(indigo.PluginBase):
             return
 
         except:
-            self.logger.exception(u'Caught Exception in fillsiteinfo')
+            self.logger.exception(u'Caught Exception in fillmetersinfo')
             device.updateStateOnServer('deviceIsOnline', value=False, uiValue="Offline")
             device.updateStateOnServer('deviceStatus', value='Offline')
             device.updateStateImageOnServer(indigo.kStateImageSel.EnergyMeterOff)
@@ -1648,7 +1651,7 @@ class Plugin(indigo.PluginBase):
                 device.updateStateImageOnServer(indigo.kStateImageSel.BatteryLevel50)
             elif percentage > 25:
                 device.updateStateImageOnServer(indigo.kStateImageSel.BatteryLevel25)
-            elif percentage < 25:
+            elif percentage <= 25:
                 self.logger.debug(u'Setting to Battery Level Low Image')
                 device.updateStateImageOnServer(indigo.kStateImageSel.BatteryLevelLow)
 
@@ -1676,7 +1679,7 @@ class Plugin(indigo.PluginBase):
                     update_time = t.strftime('%c')
                     device.updateStateOnServer('timeGridUp', value=str(update_time))
                 device.updateStateOnServer('gridConnected', value=True)
-            elif data['grid_status'] == 'SystemIslandedActive' :
+            elif data['grid_status'] in ('SystemIslandedActive', 'SystemIslandedReady'):
                 self.gridConnected = False
                 if gridConnected == True:
                     self.triggerCheck(device, 'gridLoss')
@@ -1698,10 +1701,10 @@ class Plugin(indigo.PluginBase):
         try:
             gridfaults = str(device.states['gridFaults'])
 
-            if str(data) != '[]':
+            if str(data) == '[]':
                 self.logger.debug(u'Grid Faults -- BLANK --'+str(gridfaults))
-            if str(data) !=gridfaults and gridfaults != '[]':
-                # Data changed
+            if str(data) != gridfaults and str(data) != '[]':
+                # New faults appeared or changed
                 self.triggerCheck(device,'gridFault')
 
             device.updateStateOnServer('gridFaults', value=str(data))
