@@ -2,135 +2,153 @@
 
 # Triggers & Automation
 
-The plugin fires Indigo triggers on specific events. Create trigger actions in **Indigo → Triggers** and select the plugin event type.
+The plugin exposes rich device states that Indigo can watch with standard **Device State Change** triggers. Use these to build automations that react to grid events, battery activity, and solar generation.
+
+> **Note:** The plugin's internal trigger handling code defines `gridLoss`, `gridRestored`, `batteryCharging`, and `batteryDischarging` events, but there is no `Events.xml` in the bundle so these do not appear as selectable plugin event types in the Indigo Triggers UI. Use the **Device State Change** trigger type instead — it is equally capable and more flexible.
 
 ---
 
-## Available Trigger Events
+## How to Create a Trigger
 
-| Trigger ID | Device | Fires When |
-|---|---|---|
-| `gridLoss` | Tesla Grid Status | Grid transitions from connected → islanded |
-| `gridRestored` | Tesla Grid Status | Grid transitions from islanded → connected |
-| `gridFault` | Tesla Grid Status | A new grid fault is detected (fault list changes to non-empty) |
-| `batteryCharging` | Tesla Meters | Battery transitions from not-charging → charging (> 100 W charge) |
-| `batteryDischarging` | Tesla Meters | Battery transitions from not-discharging → discharging (> 150 W discharge) |
-| `solarExporting` | Tesla Meters | Grid export transitions from not-exporting → exporting (> 100 W export) |
-
-> Triggers fire on **state transitions only** — not repeatedly while the condition is true.
+1. In Indigo, open **Triggers** and click **+**
+2. Choose **Device State Change** as the trigger type
+3. Select the relevant plugin device (Tesla Grid Status, Tesla Meters, etc.)
+4. Select the state to watch and the condition (equals, changes, becomes True/False, etc.)
+5. Add actions
 
 ---
 
 ## Grid Events
 
-### Grid Loss (`gridLoss`)
+### Grid Loss
 
-Fires the moment the gateway reports `SystemIslandedActive` or `SystemIslandedReady` after a connected state.
+**Watch:** `Tesla Grid Status → gridConnected` **becomes** `False`
+
+This fires the moment the gateway reports the grid is down and the Powerwall is islanding.
 
 **Typical automations:**
 - Turn off high-draw appliances (EV charger, pool pump, electric dryer)
-- Send a push notification: "Grid power lost — Powerwall islanded"
-- Log the event to a variable or file
-- Activate an emergency lighting scene
+- Send notification: "Grid power lost — Powerwall islanded. Battery at X%"
+- Set operational mode to `backup` via the Set Operational Mode action
+- Log the loss time (also available as `timeGridLoss` device state)
 
-**State to check alongside trigger:**
-- `Tesla Grid Status → timeGridLoss` — timestamp of the loss
+### Grid Restored
 
-### Grid Restored (`gridRestored`)
+**Watch:** `Tesla Grid Status → gridConnected` **becomes** `True`
 
 Fires when the gateway reports `SystemGridConnected` after an islanded state.
 
 **Typical automations:**
-- Re-enable appliances that were turned off during outage
-- Send a notification: "Grid power restored"
-- Switch battery back to `autonomous` mode if you changed it during the outage
+- Re-enable appliances turned off during the outage
+- Send notification: "Grid power restored"
+- Switch battery back to `autonomous` mode
+- Log restore time (also available as `timeGridUp`)
 
-**State to check:**
-- `Tesla Grid Status → timeGridUp` — timestamp of restoration
+### Grid Fault
 
-### Grid Fault (`gridFault`)
+**Watch:** `Tesla Grid Status → gridFaults` **changes**
 
-Fires when new fault data appears in the gateway fault list. Grid faults are diagnostic events logged by the Powerwall; they don't necessarily mean a full outage.
+The `gridFaults` state holds a JSON string — it is `[]` when no faults exist. Trigger on it changing to catch any new fault event.
 
-**Typical automation:**
-- Log fault data to an Indigo variable for later review
-- Send a notification with the raw fault string
+**Typical automations:**
+- Log fault data to an Indigo variable
+- Send a notification with the fault string for later review
 
 ---
 
 ## Battery Events
 
-### Battery Charging (`batteryCharging`)
+### Battery Starts Discharging
 
-Fires when battery power flow crosses −100 W (battery drawing more than 100 W from solar or grid).
+**Watch:** `Tesla Meters → batteryDischarging` **becomes** `True`
 
-**Typical automations:**
-- Update a control page indicator
-- Log charging events to track daily cycles
+Fires when battery discharge power exceeds 150 W.
 
-### Battery Discharging (`batteryDischarging`)
+### Battery Starts Charging
 
-Fires when battery power flow crosses +150 W (battery supplying more than 150 W to the home).
+**Watch:** `Tesla Meters → batteryCharging` **becomes** `True`
 
-**Typical automations:**
-- Turn on a "battery active" indicator light
-- Log discharge events
+Fires when battery charge power exceeds 100 W.
+
+### Battery State Change
+
+**Watch:** `Tesla Meters → batteryState` **changes**
+
+The `batteryState` string cycles between `idle`, `charging`, and `discharging`. Trigger on changes to catch any transition, or use **equals** a specific value to trigger only on one state.
 
 ---
 
 ## Solar Events
 
-### Solar Exporting (`solarExporting`)
+### Solar Generation Starts
 
-Fires when grid export crosses −100 W (more than 100 W being sent to the grid).
+**Watch:** `Tesla Meters → solarGenerating` **becomes** `True`
 
-**Typical automations:**
-- Log export start time
-- Activate loads to consume excess generation (pool pump, hot water boost)
+Fires when solar output exceeds 95 W.
+
+### Exporting to Grid
+
+**Watch:** `Tesla Meters → sendingtoGrid` **becomes** `True`
+
+Fires when grid export exceeds 100 W.
+
+**Typical automation:**
+- Activate pool pump or hot water boost to use excess solar
 
 ---
 
-## State-Based Automation (without triggers)
+## Tariff Events
 
-For automation that reacts to a specific state value rather than a transition, use **Indigo Control Pages** or **Indigo Variables** with **Condition** checks on device states:
+### Tariff Period Changes
 
-### Current Tariff Period
+**Watch:** `Tesla Site Info → current_tarriff_name` **changes**
 
-```
-Condition:  Tesla Site Info → current_tarriff_name  equals  "Peak"
-Action:     Set Operational Mode → backup
-```
+Fires whenever the TOU period transitions (e.g. Off-Peak → Peak). You can also use **equals** a specific period name to trigger on entering a known tariff window.
 
-### Battery Below Threshold
+**Typical automations:**
 
 ```
-Condition:  Tesla Battery → chargeCP  is less than  20
-Action:     Send notification "Battery critically low"
+Peak tariff starts:
+  Trigger:  current_tarriff_name equals "Peak"
+  Action:   Set Operational Mode → backup, reserve 100%
+
+Off-peak starts:
+  Trigger:  current_tarriff_name equals "Off-Peak"
+  Action:   Set Operational Mode → autonomous, reserve 20%
 ```
 
-### Solar Generating During Peak
+> Tariff data requires Online Access and is refreshed every 60 seconds.
 
-```
-Condition:  Tesla Site Info → current_tarriff_name  equals  "Peak"
-            AND Tesla Meters → solarGenerating  is True
-Action:     Switch operational mode to self_consumption
-```
+---
+
+## Useful Conditions to Combine
+
+Use Indigo **Conditions** (added to any trigger) to refine when automations fire:
+
+| Condition | Device | State | Use case |
+|---|---|---|---|
+| Battery above threshold | Tesla Battery | `chargeCP` > 50 | Only act if battery has enough charge |
+| Solar generating | Tesla Meters | `solarGenerating` = True | Only act when sun is up |
+| Grid connected | Tesla Grid Status | `gridConnected` = True | Skip during outages |
+| Mode check | Tesla Battery | `batteryMode` = `autonomous` | Only change mode if not already set |
 
 ---
 
 ## Example: Full Grid-Loss Automation
 
-A complete grid-loss action group:
+**Trigger:** `Tesla Grid Status → gridConnected` becomes `False`
 
-1. **Turn off** EV charger device
-2. **Turn off** pool pump device  
-3. **Send notification** "Grid lost — Powerwall islanded. Battery at {Tesla Battery → chargeCP}%"
-4. **Set operational mode** → `backup`, reserve `100%`
-5. **Set variable** `gridLossTime` = current time
+**Actions:**
+1. Turn off — EV charger device
+2. Turn off — Pool pump device
+3. Send push notification: "⚡ Grid lost — Powerwall islanded. Battery at [Tesla Battery → chargeCP]%"
+4. Set Operational Mode → `backup`, reserve `100%`
+5. Set variable `gridLossTime` = current timestamp
 
-And on grid restore:
+**Paired restore trigger:** `Tesla Grid Status → gridConnected` becomes `True`
 
-1. **Send notification** "Grid restored. Battery at {Tesla Battery → chargeCP}%"
-2. **Set operational mode** → `autonomous`, reserve `20%`
-3. **Turn on** pool pump device
-4. **Set variable** `gridRestoreTime` = current time
+**Actions:**
+1. Send notification: "✅ Grid restored. Battery at [Tesla Battery → chargeCP]%"
+2. Set Operational Mode → `autonomous`, reserve `20%`
+3. Turn on — Pool pump device
+4. Set variable `gridRestoreTime` = current timestamp

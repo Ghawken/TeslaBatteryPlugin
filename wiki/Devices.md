@@ -32,11 +32,6 @@ Populated from the local gateway `/api/site_info` endpoint (every 10 minutes) an
 | `utility` | String | Local | Utility provider name |
 | `distributor` | String | Local | Distributor name |
 | `frequency` | String | Local | Measured grid frequency |
-| `batteryMode` | String | Online | Current operational mode (`autonomous`, `self_consumption`, `backup`) |
-| `batteryReservePercentage` | Number | Online | Current backup reserve % |
-| `stormMode` | Boolean | Online | Whether Storm Watch / Storm Mode is enabled |
-| `batteryCount` | Number | Online | Number of Powerwall units |
-| `version` | String | Online | Gateway firmware version |
 | `current_tarriff_name` | String | Online | Current TOU period name (e.g. `Peak`, `Off-Peak`) |
 | `current_tarriff_price` | String | Online | Current TOU rate (as returned by Tesla tariff API) |
 
@@ -44,7 +39,7 @@ Populated from the local gateway `/api/site_info` endpoint (every 10 minutes) an
 
 ## Tesla Battery  `teslaBattery`
 
-Populated from the local gateway `/api/system_status/soe` endpoint (every 60 seconds) and from the Tesla cloud API for extended states.
+Populated from the local gateway `/api/system_status/soe` endpoint (every 60 seconds). Extended online states (`batteryMode`, `batteryReservePercentage`, `stormMode`, `batteryCount`, `version`) are written here by the online site info call (every hour) via `/api/1/energy_sites/{id}/site_info`.
 
 **Display state:** `chargeCP`
 

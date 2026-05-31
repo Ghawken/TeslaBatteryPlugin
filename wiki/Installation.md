@@ -37,7 +37,7 @@ Fill in the three fields under the **Tesla Battery Gateway IP Address** section:
 | **Battery Customer Username/Email** | Your Tesla account email (same one used in the Tesla app) |
 | **Battery Password** | The local Gateway customer password (shown in the Tesla app under Gateway → Manage → Local Access → Customer) |
 
-> **Finding your local password:** In the Tesla app go to **Powerwall → Settings → Advanced → Local Access Password**. The username is always `customer` internally, but enter your email in the field.
+> **Finding your local password:** The local gateway password is shown in the Tesla app under your Powerwall settings. Look for a **Local Access** or **Gateway** section — the exact path varies by app version. The password is typically a short alphanumeric code. The username is always `customer` internally, but enter your Tesla account email in the email field.
 
 Click **Check Connection Gateway Devices**. If the Gateway is reachable, the button will change to **Generate Tesla Devices**.
 

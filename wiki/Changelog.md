@@ -5,6 +5,10 @@
 
 ---
 
+## 1.0.30 — 2026-05-31
+- Add comprehensive wiki documentation
+- Update README with banner, feature table, wiki links, and inline images
+
 ## 1.0.27 — 2026-05-31
 - Fixed `TariffResolver` exceptions crashing `runConcurrentThread` — now caught and logged gracefully
 - Fixed grid fault trigger never firing on first fault appearance (condition was inverted)

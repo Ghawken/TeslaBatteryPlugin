@@ -21,6 +21,22 @@ Connect your Tesla Powerwall to [Indigo Domo](https://www.indigodomo.com) for li
 
 ---
 
+## Powerwall Device Images
+
+500+ images included for use in Indigo control pages. The `batteryState_combined` state drives image selection automatically.
+
+| Charging 50% | Idle 50% | Discharging 75% |
+|:---:|:---:|:---:|
+| ![charging](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/Combined/powerwall_comb%2Bcharging_50.png) | ![idle](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/Combined/powerwall_comb%2Bidle_50.png) | ![discharging](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/Combined/powerwall_comb%2Bdischarging_75.png) |
+
+| 25% | 50% | 75% | 100% |
+|:---:|:---:|:---:|:---:|
+| ![25](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/powerwall%2B25.png) | ![50](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/powerwall%2B50.png) | ![75](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/powerwall%2B75.png) | ![100](https://raw.githubusercontent.com/Ghawken/TeslaBatteryPlugin/python3_/PowerwallImages/Device/powerwall%2B100.png) |
+
+See [Control Pages & Images](Control-Pages-and-Images) for full setup instructions.
+
+---
+
 ## Quick Navigation
 
 | Page | What's inside |
