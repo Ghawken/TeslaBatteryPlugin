@@ -101,6 +101,7 @@ And the four devices should show **Online** status in the Indigo device list.
 | "Please set Battery password and username" | Local credentials not entered | Fill in IP, email, and password in Plugin Config |
 | "Connection cannot be Established" | Wrong IP or gateway unreachable | Check static IP and that the Mac can ping the gateway |
 | `login_required: The refresh_token is invalid` | Refresh token expired or revoked | Generate a new one from Teslascope |
+| `403 Client Error: forbidden … /api/1/products` | Tesla enforcing TLS 1.3 (June 2026+) | Upgrade to v1.0.35+ which pins connections to TLS 1.3 |
 | Devices show Offline after a few minutes | Local session expired and re-login failing | Check `batPassword` — special characters require no quoting, just enter literally |
 | Online states not updating | `allowOnline` not ticked, or no refresh token | Enable online access and add token |
 

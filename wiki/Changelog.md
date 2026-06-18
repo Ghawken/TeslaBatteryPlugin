@@ -5,6 +5,14 @@
 
 ---
 
+## 1.0.35 — 2026-06-18
+- Fixed 403 Forbidden errors from Tesla Owner API caused by Tesla enforcing TLS 1.3
+- Added `TLSAdapter` to bundled `teslapy` library — pins all HTTPS connections to TLS 1.3 only
+- Fix is equivalent to [teslapy PR #176](https://github.com/tdorssers/TeslaPy/pull/176) (merged 2026-06-15, not yet in a release)
+- Removed `battery_list()` debug call from `getauthTokenOnline()` that crashed the background thread on every loop restart
+- `getsiteInfo()` now returns `""` on exception (previously returned `None`, causing callers to misread failure as success)
+- `getsiteInfo()` logs a clear human-readable message on 403 rather than a stack trace
+
 ## 1.0.30 — 2026-05-31
 - Add comprehensive wiki documentation
 - Update README with banner, feature table, wiki links, and inline images

@@ -1,6 +1,6 @@
 ## Tesla Battery Plugin
 
-[![Version](https://img.shields.io/badge/version-1.0.30-green)](https://github.com/Ghawken/TeslaBatteryPlugin/releases)
+[![Version](https://img.shields.io/badge/version-1.0.35-green)](https://github.com/Ghawken/TeslaBatteryPlugin/releases)
 
 ---
 

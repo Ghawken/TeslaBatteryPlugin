@@ -4,7 +4,7 @@
 
 Connect your Tesla Powerwall to [Indigo Domo](https://www.indigodomo.com) for live monitoring, automation, and control — entirely from your local network, with optional Tesla cloud features.
 
-[![Version](https://img.shields.io/badge/version-1.0.30-brightgreen)](https://github.com/Ghawken/TeslaBatteryPlugin/releases)
+[![Version](https://img.shields.io/badge/version-1.0.35-brightgreen)](https://github.com/Ghawken/TeslaBatteryPlugin/releases)
 [![Indigo](https://img.shields.io/badge/Indigo-2022.1%2B-blue)](https://www.indigodomo.com)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org)
 
@@ -92,4 +92,4 @@ The `batteryState_combined` device state (e.g. `charging_73`) maps directly to t
 
 ---
 
-*Developed by Glenn Hawken · [MIT Licence](LICENSE)*
+*Developed by GlennNZ · [MIT Licence](LICENSE)*

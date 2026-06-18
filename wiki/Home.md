@@ -92,4 +92,4 @@ The plugin uses **two independent communication paths**:
 
 ---
 
-*Developed by Glenn Hawken — [GitHub](https://github.com/Ghawken/TeslaBatteryPlugin/) — [Indigo Forums](https://forums.indigodomo.com)*
+*Developed by GlennNZ — [GitHub](https://github.com/Ghawken/TeslaBatteryPlugin/) — [Indigo Forums](https://forums.indigodomo.com)*
