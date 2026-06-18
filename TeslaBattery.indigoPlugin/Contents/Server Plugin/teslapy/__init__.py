@@ -19,6 +19,7 @@ import pkgutil
 import datetime
 import webbrowser
 import stat
+import ssl
 try:
     from urlparse import urljoin
 except ImportError:
@@ -48,6 +49,15 @@ try:
     input = raw_input
 except NameError:
     pass
+
+
+class TLSAdapter(requests.adapters.HTTPAdapter):
+    """ HTTPS adapter that enforces TLS 1.3 — required by Tesla Owner API since June 2026 """
+    def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+        ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+        super().init_poolmanager(connections, maxsize, block, ssl_context=ctx)
 
 
 class Tesla(OAuth2Session):
@@ -97,7 +107,7 @@ class Tesla(OAuth2Session):
         self.auto_refresh_url = 'oauth2/v3/token'
         self.auto_refresh_kwargs = {'client_id': SSO_CLIENT_ID}
         self.token_updater = self._token_updater
-        self.mount('https://', requests.adapters.HTTPAdapter(max_retries=retry))
+        self.mount('https://', TLSAdapter(max_retries=retry))
         self.headers.update({'Content-Type': 'application/json',
                              'X-Tesla-User-Agent': app_user_agent,
                              'User-Agent': user_agent})

@@ -855,7 +855,6 @@ class Plugin(indigo.PluginBase):
 
         self.pairingToken = self.tesla.token["access_token"]
         self.logger.debug(f"{self.tesla.token}")
-        self.logger.debug(f"{self.tesla.battery_list()}")
         return
        # else:
        #     self.logger.debug("Already Authorized with Tesla")
@@ -1280,8 +1279,14 @@ class Plugin(indigo.PluginBase):
 
 
         except Exception as e:
-            self.logger.exception("Error getsiteInfo Operation : " + repr(e))
-            self.logger.debug("Error getsiteInfo Operation" + str(e))
+            if '403' in str(e):
+                self.logger.error("Tesla Owner API returned 403 Forbidden on /api/1/products. "
+                                  "Tesla is deprecating the Owner API — energy site ID cannot be fetched. "
+                                  "Online control features will be unavailable until Tesla Fleet API support is added.")
+            else:
+                self.logger.exception("Error getsiteInfo Operation : " + repr(e))
+            self.energysiteid = ""
+            return ""
 
     def setsitemasterRun(self):
 
